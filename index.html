@@ -187,8 +187,8 @@ tbody tr:nth-child(even){background:rgba(255,255,255,.02)}
 
 <script>
 Chart.register(ChartDataLabels);
-Chart.defaults.animation = { duration: 1100, easing: "easeOutQuart",
-  delay: ctx => ctx.type === "data" && ctx.mode === "default" ? Math.min(ctx.dataIndex, 12) * 70 : 0 };
+Chart.defaults.animation.duration = 1100;
+Chart.defaults.animation.easing = "easeOutQuart";
 Chart.defaults.plugins.tooltip.backgroundColor = "#0b1329";
 Chart.defaults.plugins.tooltip.borderColor = "#3a4f94";
 Chart.defaults.plugins.tooltip.borderWidth = 1;
@@ -265,7 +265,7 @@ async function carregarDados() {
     ultimaAtualizacao = new Date();
     $("dot").className = "dot on";
     $("sync").textContent = "Ao vivo • " + ultimaAtualizacao.toLocaleTimeString("pt-BR");
-    $("alert").style.display = "none";
+    if (!$("alert").textContent.includes("gráfico")) $("alert").style.display = "none";
     reenviarPendentes();
     const h = JSON.stringify([dbT0, dbHist, dbJust]);
     if (h !== lastHash) { lastHash = h; preencherFiltros(); renderTudo(); }
@@ -374,11 +374,18 @@ function preencherFiltros() {
   sd.value = datas.includes(vd) ? vd : "TODOS"; sc.value = colabs.includes(vc) ? vc : "TODOS";
 }
 function upChart(key, id, cfg) {
-  if (!charts[key]) { charts[key] = new Chart($(id), cfg); return; }
-  const c = charts[key];
-  c.data.labels = cfg.data.labels;
-  cfg.data.datasets.forEach((d, i) => { if (c.data.datasets[i]) Object.assign(c.data.datasets[i], d); });
-  c.update();
+  try {
+    if (!charts[key]) { charts[key] = new Chart($(id), cfg); return; }
+    const c = charts[key];
+    c.data.labels = cfg.data.labels;
+    cfg.data.datasets.forEach((d, i) => { if (c.data.datasets[i]) Object.assign(c.data.datasets[i], d); });
+    c.update();
+  } catch (e) {
+    console.error("Erro no gráfico " + key, e);
+    if (charts[key] && !charts[key].ctx) delete charts[key];
+    const al = $("alert"); al.style.display = "block";
+    al.textContent = `⚠ Erro ao desenhar o gráfico "${key}": ${e.message}`;
+  }
 }
 const tick = { color: "#94a3b8" }, grid = { color: "#223259" };
 
