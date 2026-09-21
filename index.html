@@ -1,1354 +1,445 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Shopee SPX | Relatório Executivo & Monitor SLA Bancada</title>
-  
-  <!-- Dependências: Chart.js + Plugin de Rótulos Diretos (Sem depender de passar o mouse) -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
-  
-  <style>
-    :root {
-      --spx-orange: #ee4d2d;
-      --spx-orange-glow: rgba(238, 77, 45, 0.35);
-      --spx-blue: #0284c7;
-      --bg-dark: #0b1329;
-      --card-dark: #151f38;
-      --card-border: #223259;
-      --text-main: #f8fafc;
-      --text-muted: #94a3b8;
-      --status-ok: #10b981;
-      --status-nok: #ef4444;
-      --status-warn: #f59e0b;
-    }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    }
-
-    body {
-      background-color: var(--bg-dark);
-      color: var(--text-main);
-      padding: 16px 24px;
-      min-height: 100vh;
-    }
-
-    /* Cabeçalho Executivo */
-    header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: var(--card-dark);
-      padding: 16px 24px;
-      border-radius: 12px;
-      border: 1px solid var(--card-border);
-      margin-bottom: 20px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.25);
-    }
-
-    .brand-area {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .spx-badge {
-      background-color: var(--spx-orange);
-      color: #fff;
-      font-weight: 900;
-      padding: 6px 14px;
-      border-radius: 8px;
-      font-size: 1.1rem;
-      letter-spacing: 0.5px;
-      box-shadow: 0 0 12px var(--spx-orange-glow);
-    }
-
-    .brand-info h1 {
-      font-size: 1.3rem;
-      font-weight: 700;
-      color: #fff;
-    }
-
-    .brand-info p {
-      font-size: 0.8rem;
-      color: var(--text-muted);
-    }
-
-    .nav-tabs {
-      display: flex;
-      gap: 8px;
-      background: #0b1329;
-      padding: 5px;
-      border-radius: 8px;
-      border: 1px solid var(--card-border);
-    }
-
-    .nav-tab-btn {
-      background: transparent;
-      border: none;
-      color: var(--text-muted);
-      padding: 8px 18px;
-      font-weight: 600;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 0.88rem;
-      transition: all 0.2s ease;
-    }
-
-    .nav-tab-btn.active {
-      background: var(--spx-orange);
-      color: #fff;
-      box-shadow: 0 2px 8px var(--spx-orange-glow);
-    }
-
-    .actions-top {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .sync-badge {
-      background: #0b1329;
-      border: 1px solid var(--card-border);
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-size: 0.8rem;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .status-dot {
-      width: 9px;
-      height: 9px;
-      border-radius: 50%;
-      background: var(--status-ok);
-      box-shadow: 0 0 8px var(--status-ok);
-    }
-
-    .status-dot.syncing {
-      background: var(--status-warn);
-      box-shadow: 0 0 8px var(--status-warn);
-    }
-
-    .btn-action {
-      background: #1e2d4d;
-      color: #fff;
-      border: 1px solid var(--card-border);
-      padding: 8px 16px;
-      border-radius: 6px;
-      font-size: 0.82rem;
-      cursor: pointer;
-      font-weight: 600;
-      transition: all 0.2s;
-    }
-
-    .btn-action:hover {
-      background: var(--spx-orange);
-      border-color: var(--spx-orange);
-    }
-
-    /* Métricas / KPI Cards */
-    .kpi-row {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-      gap: 16px;
-      margin-bottom: 20px;
-    }
-
-    .kpi-card {
-      background: var(--card-dark);
-      border: 1px solid var(--card-border);
-      border-radius: 10px;
-      padding: 18px 20px;
-      position: relative;
-      overflow: hidden;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    }
-
-    .kpi-card::before {
-      content: "";
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 4px;
-      height: 100%;
-      background: var(--spx-orange);
-    }
-
-    .kpi-card.card-ok::before { background: var(--status-ok); }
-    .kpi-card.card-nok::before { background: var(--status-nok); }
-    .kpi-card.card-warn::before { background: var(--status-warn); }
-
-    .kpi-card h4 {
-      font-size: 0.78rem;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 6px;
-    }
-
-    .kpi-card .val {
-      font-size: 2rem;
-      font-weight: 800;
-      color: #fff;
-      display: flex;
-      align-items: baseline;
-      gap: 6px;
-    }
-
-    .kpi-card .sub {
-      font-size: 0.78rem;
-      color: var(--text-muted);
-      margin-top: 4px;
-    }
-
-    /* Barra de Filtros */
-    .filter-bar {
-      background: var(--card-dark);
-      border: 1px solid var(--card-border);
-      border-radius: 10px;
-      padding: 14px 20px;
-      margin-bottom: 20px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 14px;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .filter-group {
-      display: flex;
-      gap: 12px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-
-    select, input[type="text"] {
-      background: #0b1329;
-      border: 1px solid var(--card-border);
-      color: #fff;
-      padding: 8px 12px;
-      border-radius: 6px;
-      font-size: 0.85rem;
-      outline: none;
-    }
-
-    select:focus, input[type="text"]:focus {
-      border-color: var(--spx-orange);
-    }
-
-    /* Grid de Gráficos Executivos */
-    .charts-grid-main {
-      display: grid;
-      grid-template-columns: 2fr 1.1fr;
-      gap: 18px;
-      margin-bottom: 20px;
-    }
-
-    .charts-grid-sub {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 18px;
-      margin-bottom: 20px;
-    }
-
-    @media (max-width: 1024px) {
-      .charts-grid-main, .charts-grid-sub {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    .panel-card {
-      background: var(--card-dark);
-      border: 1px solid var(--card-border);
-      border-radius: 10px;
-      padding: 20px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    }
-
-    .panel-card h3 {
-      font-size: 1rem;
-      color: #fff;
-      margin-bottom: 6px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .panel-card .panel-subtitle {
-      font-size: 0.78rem;
-      color: var(--text-muted);
-      margin-bottom: 16px;
-    }
-
-    /* Tabela */
-    .table-container {
-      overflow-x: auto;
-      max-height: 520px;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.84rem;
-      text-align: left;
-    }
-
-    th {
-      background: #0b1329;
-      color: var(--text-muted);
-      padding: 12px 14px;
-      font-weight: 600;
-      position: sticky;
-      top: 0;
-      border-bottom: 1px solid var(--card-border);
-      white-space: nowrap;
-      z-index: 2;
-    }
-
-    td {
-      padding: 10px 14px;
-      border-bottom: 1px solid #1a2747;
-      white-space: nowrap;
-    }
-
-    tr:hover {
-      background: #1c2a4d;
-    }
-
-    /* Badges */
-    .badge {
-      padding: 3px 8px;
-      border-radius: 4px;
-      font-size: 0.74rem;
-      font-weight: 700;
-      display: inline-block;
-    }
-
-    .badge-ok { background: rgba(16, 185, 129, 0.15); color: #34d399; }
-    .badge-nok { background: rgba(239, 68, 68, 0.2); color: #f87171; animation: pulse 2s infinite; }
-    .badge-warn { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
-    .badge-justificado { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
-
-    @keyframes pulse {
-      0% { opacity: 1; }
-      50% { opacity: 0.45; }
-      100% { opacity: 1; }
-    }
-
-    .btn-justificar {
-      background: var(--spx-orange);
-      color: #fff;
-      border: none;
-      padding: 5px 12px;
-      border-radius: 4px;
-      font-size: 0.78rem;
-      font-weight: 700;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-
-    .btn-justificar:hover {
-      background: #d03e1b;
-    }
-
-    /* Modal de Justificativa */
-    .modal-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: rgba(0, 0, 0, 0.8);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-      backdrop-filter: blur(4px);
-    }
-
-    .modal-box {
-      background: var(--card-dark);
-      border: 1px solid var(--card-border);
-      border-radius: 12px;
-      width: 90%;
-      max-width: 460px;
-      padding: 24px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
-    }
-
-    .modal-box h3 {
-      font-size: 1.15rem;
-      margin-bottom: 8px;
-      color: #fff;
-    }
-
-    .modal-box p {
-      font-size: 0.85rem;
-      color: var(--text-muted);
-      margin-bottom: 16px;
-    }
-
-    .modal-box select {
-      width: 100%;
-      margin-bottom: 20px;
-      padding: 10px;
-    }
-
-    .modal-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 10px;
-    }
-
-    /* Footer */
-    footer {
-      text-align: center;
-      padding: 18px 0;
-      margin-top: 24px;
-      border-top: 1px solid var(--card-border);
-      font-size: 0.8rem;
-      color: var(--text-muted);
-    }
-
-    footer strong {
-      color: var(--spx-orange);
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shopee SPX | Monitor de Bancada – Hub RJ (Itaboraí)</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+<style>
+:root{--or:#ee4d2d;--bg:#0b1329;--card:#151f38;--bd:#223259;--mut:#94a3b8;--ok:#10b981;--nok:#ef4444;--warn:#f59e0b}
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+body{background:var(--bg);color:#f8fafc;padding:16px;min-height:100vh}
+header{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:center;background:var(--card);padding:14px 20px;border-radius:12px;border:1px solid var(--bd);margin-bottom:16px}
+.brand{display:flex;align-items:center;gap:12px}
+.badge-spx{background:var(--or);font-weight:900;padding:6px 14px;border-radius:8px}
+h1{font-size:1.15rem}.brand p{font-size:.78rem;color:var(--mut)}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;background:var(--bg);padding:5px;border-radius:8px;border:1px solid var(--bd)}
+.tab{background:none;border:0;color:var(--mut);padding:8px 14px;font-weight:600;border-radius:6px;cursor:pointer;font-size:.85rem}
+.tab.active{background:var(--or);color:#fff}
+.sync{display:flex;align-items:center;gap:8px;font-size:.8rem;background:var(--bg);border:1px solid var(--bd);padding:6px 12px;border-radius:6px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--warn)}
+.dot.on{background:var(--ok)}.dot.off{background:var(--nok)}
+.btn{background:#1e2d4d;color:#fff;border:1px solid var(--bd);padding:8px 14px;border-radius:6px;font-size:.82rem;cursor:pointer;font-weight:600}
+.btn:hover{background:var(--or)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:16px}
+.kpi{background:var(--card);border:1px solid var(--bd);border-left:4px solid var(--or);border-radius:10px;padding:16px}
+.kpi.ok{border-left-color:var(--ok)}.kpi.nok{border-left-color:var(--nok)}.kpi.warn{border-left-color:var(--warn)}
+.kpi h4{font-size:.74rem;color:var(--mut);text-transform:uppercase;margin-bottom:6px}
+.kpi .v{font-size:1.9rem;font-weight:800}.kpi .s{font-size:.76rem;color:var(--mut);margin-top:4px}
+.bar{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+.bar label{font-size:.82rem;color:var(--mut)}
+select,input{background:var(--bg);border:1px solid var(--bd);color:#fff;padding:8px 10px;border-radius:6px;font-size:.85rem}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.grid2.main{grid-template-columns:2fr 1.1fr}
+@media(max-width:900px){.grid2,.grid2.main{grid-template-columns:1fr}}
+.panel{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:18px;margin-bottom:16px}
+.grid2 .panel{margin-bottom:0}
+.panel h3{font-size:1rem;margin-bottom:4px}.sub{font-size:.78rem;color:var(--mut);margin-bottom:12px}
+.ch{height:280px;position:relative}
+.tw{overflow-x:auto;max-height:520px}
+table{width:100%;border-collapse:collapse;font-size:.84rem}
+th{background:var(--bg);color:var(--mut);padding:10px 12px;text-align:left;position:sticky;top:0;white-space:nowrap}
+td{padding:9px 12px;border-bottom:1px solid #1a2747;white-space:nowrap}
+tr:hover{background:#1c2a4d}
+.b{padding:3px 8px;border-radius:4px;font-size:.74rem;font-weight:700}
+.b.ok{background:rgba(16,185,129,.15);color:#34d399}.b.nok{background:rgba(239,68,68,.2);color:#f87171}
+.b.warn{background:rgba(245,158,11,.2);color:#fbbf24}.b.j{background:rgba(59,130,246,.2);color:#60a5fa}
+.bj{background:var(--or);color:#fff;border:0;padding:5px 12px;border-radius:4px;font-weight:700;cursor:pointer}
+.empty{padding:28px;text-align:center;color:var(--mut)}
+.alert{display:none;background:rgba(239,68,68,.15);border:1px solid var(--nok);color:#fca5a5;padding:10px 16px;border-radius:8px;margin-bottom:16px;font-size:.85rem}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.8);display:none;align-items:center;justify-content:center;z-index:9}
+.mbox{background:var(--card);border:1px solid var(--bd);border-radius:12px;width:90%;max-width:440px;padding:22px}
+.mbox select,.mbox input{width:100%;margin:8px 0 14px}
+.mact{display:flex;justify-content:flex-end;gap:10px}
+footer{text-align:center;padding:16px 0;margin-top:20px;border-top:1px solid var(--bd);font-size:.8rem;color:var(--mut)}
+footer strong{color:var(--or)}
+</style>
 </head>
 <body>
-
-  <!-- Top Bar -->
-  <header>
-    <div class="brand-area">
-      <div class="spx-badge">SPX</div>
-      <div class="brand-info">
-        <h1>Shopee Express • Hub RJ (Itaboraí)</h1>
-        <p>Monitorização Diária de Bancada, Rastreio de Ofensores & Ocupação</p>
-      </div>
-    </div>
-
-    <!-- Navegação de Abas -->
-    <div class="nav-tabs">
-      <button class="nav-tab-btn active" onclick="switchView('operacao', event)">🚨 Operação Tempo Real (Audit T0)</button>
-      <button class="nav-tab-btn" onclick="switchView('gerencial', event)">📊 Relatório Executivo & SLA</button>
-      <button class="nav-tab-btn" onclick="switchView('ociosidade', event)">⏱️ Ocupação & Ociosidade</button>
-    </div>
-
-    <div class="actions-top">
-      <div class="sync-badge">
-        <span class="status-dot" id="status-dot"></span>
-        <span id="sync-text">Sincronizando...</span>
-      </div>
-      <button class="btn-action" onclick="carregarDados()">🔄 Atualizar Agora</button>
-    </div>
-  </header>
-
-  <!-- ==================== TELA 1: OPERAÇÃO TEMPO REAL (AUDIT T0) ==================== -->
-  <div id="view-operacao">
-    <div class="kpi-row">
-      <div class="kpi-card">
-        <h4>Rotas em Operação</h4>
-        <div class="val" id="op-kpi-total">0</div>
-        <div class="sub">Rotas ativas monitoradas hoje</div>
-      </div>
-      <div class="kpi-card card-nok">
-        <h4>Estouros de SLA (> 10min)</h4>
-        <div class="val" id="op-kpi-nok" style="color: #f87171;">0</div>
-        <div class="sub">Rotas com SLA excedido</div>
-      </div>
-      <div class="kpi-card card-warn">
-        <h4>Pendentes de Justificativa</h4>
-        <div class="val" id="op-kpi-pendentes" style="color: #fbbf24;">0</div>
-        <div class="sub">Aguardando preenchimento</div>
-      </div>
-      <div class="kpi-card card-ok">
-        <h4>Aderência Instantânea</h4>
-        <div class="val" id="op-kpi-aderencia" style="color: #34d399;">100%</div>
-        <div class="sub">Conformidade operacional (&le; 10m)</div>
-      </div>
-    </div>
-
-    <!-- Filtros de Operação -->
-    <div class="filter-bar">
-      <div class="filter-group">
-        <label style="font-size: 0.85rem; color: var(--text-muted);">Buscar:</label>
-        <input type="text" id="op-search" placeholder="Target ID, Cage, Auditor..." oninput="filtrarOperacao()">
-
-        <label style="font-size: 0.85rem; color: var(--text-muted); margin-left: 8px;">Filtro Operacional:</label>
-        <select id="op-filter-sla" onchange="filtrarOperacao()">
-          <option value="TODOS">Todas as Rotas</option>
-          <option value="NOK_PENDENTE" selected>Somente > 10m PENDENTES de Justificativa</option>
-          <option value="NOK">Todas as > 10m (Com e Sem Justificativa)</option>
-          <option value="ATIVAS">Somente Rotas em Andamento</option>
-          <option value="OK">Conformes (&le; 10m)</option>
-        </select>
-      </div>
-
-      <div style="font-size: 0.82rem; color: var(--text-muted);">
-        Próxima atualização em: <strong id="timer-refresh" style="color: #fff;">5s</strong>
-      </div>
-    </div>
-
-    <!-- Tabela T0 com Cronômetro Dinâmico -->
-    <div class="panel-card">
-      <h3>
-        <span>Rotas na Bancada (Ao Vivo)</span>
-        <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: normal;">* Cronômetro atualizado a cada segundo</span>
-      </h3>
-      <div class="panel-subtitle">Monitoramento segundo a segundo da validação de pacotes e estouro de SLA.</div>
-      
-      <div class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>Target ID (AT/TO)</th>
-              <th>Cage / Vaga</th>
-              <th>Pacotes</th>
-              <th>Auditor (Bancada)</th>
-              <th>Validation Start</th>
-              <th>Validation End</th>
-              <th>Duração</th>
-              <th>Condição</th>
-              <th>Justificativa Salva</th>
-              <th>Ação</th>
-            </tr>
-          </thead>
-          <tbody id="op-table-body">
-            <!-- Renderizado dinamicamente -->
-          </tbody>
-        </table>
-      </div>
-    </div>
+<header>
+  <div class="brand"><div class="badge-spx">SPX</div><div><h1>Shopee Express • Hub RJ (Itaboraí)</h1><p>Monitor de bancada, ofensores e ocupação</p></div></div>
+  <div class="tabs">
+    <button class="tab active" data-tab="operacao">🚨 Operação Tempo Real</button>
+    <button class="tab" data-tab="gerencial">📊 Gerencial & SLA</button>
+    <button class="tab" data-tab="ociosidade">⏱️ Ocupação</button>
   </div>
-
-  <!-- ==================== TELA 2: RELATÓRIO EXECUTIVO & GESTÃO SLA ==================== -->
-  <div id="view-gerencial" style="display: none;">
-    <!-- Barra de Filtros -->
-    <div class="filter-bar">
-      <div class="filter-group">
-        <label style="font-size: 0.85rem; color: var(--text-muted);">Período / Dia:</label>
-        <select id="ger-filter-data" onchange="atualizarPainelGerencial()">
-          <option value="TODOS">Todos os Dias (Semana Consolidada)</option>
-        </select>
-
-        <label style="font-size: 0.85rem; color: var(--text-muted); margin-left: 8px;">Colaborador:</label>
-        <select id="ger-filter-colab" onchange="atualizarPainelGerencial()">
-          <option value="TODOS">Todos os Colaboradores</option>
-        </select>
-
-        <label style="font-size: 0.85rem; color: var(--text-muted); margin-left: 8px;">Condição:</label>
-        <select id="ger-filter-status" onchange="atualizarPainelGerencial()">
-          <option value="TODOS">Todas as Bancadas</option>
-          <option value="OK">OK (&le; 10 min)</option>
-          <option value="NOK">NOK (> 10 min)</option>
-        </select>
-      </div>
-
-      <button class="btn-action" onclick="resetarFiltrosGerencial()">Limpar Filtros</button>
-    </div>
-
-    <!-- KPIs Executivos do PDF -->
-    <div class="kpi-row">
-      <div class="kpi-card">
-        <h4>Tempo Médio Bancada</h4>
-        <div class="val" id="ger-kpi-media">08:32</div>
-        <div class="sub" id="ger-kpi-diff-meta" style="color: #34d399;">▼ 01:28 vs Meta (10:00)</div>
-      </div>
-      <div class="kpi-card card-ok">
-        <h4>Aderência ao SLA</h4>
-        <div class="val" id="ger-kpi-aderencia" style="color: #34d399;">71.8%</div>
-        <div class="sub" id="ger-kpi-qtd-ok">554 rotas OK (&le; 10 min)</div>
-      </div>
-      <div class="kpi-card card-nok">
-        <h4>Bancadas > 10 min (NOK)</h4>
-        <div class="val" id="ger-kpi-nok" style="color: #f87171;">218 <span style="font-size: 1rem; color: #94a3b8;">(28.2%)</span></div>
-        <div class="sub">Rotas com tempo excedido (Gargalos)</div>
-      </div>
-      <div class="kpi-card">
-        <h4>Volume Auditado</h4>
-        <div class="val" id="ger-kpi-total">772</div>
-        <div class="sub">Rotas / TOs consolidadas</div>
-      </div>
-    </div>
-
-    <!-- Gráficos Principais (Executivo) -->
-    <div class="charts-grid-main">
-      <div class="panel-card">
-        <h3>Acompanhamento Diário do Tempo Médio</h3>
-        <div class="panel-subtitle">Tempo médio diário de bancada com exibição direta de minutos por dia e linha de meta (10m).</div>
-        <div style="height: 280px;">
-          <canvas id="chartEvolucao"></canvas>
-        </div>
-      </div>
-
-      <div class="panel-card">
-        <h3>Distribuição de Conformidade</h3>
-        <div class="panel-subtitle">Rotas dentro do SLA (&le;10m) vs Fora do SLA (>10m). <strong>Clique na fatia para filtrar</strong>.</div>
-        <div style="height: 280px;">
-          <canvas id="chartConformidade"></canvas>
-        </div>
-      </div>
-    </div>
-
-    <!-- Gráficos Secundários -->
-    <div class="charts-grid-sub">
-      <div class="panel-card">
-        <h3>Ofensores de Tempo (Motivos Mapeados)</h3>
-        <div class="panel-subtitle">Quantitativo direto por motivo (foco de atuação operacional).</div>
-        <div style="height: 280px;">
-          <canvas id="chartMotivos"></canvas>
-        </div>
-      </div>
-
-      <div class="panel-card">
-        <h3>Top Motoristas com Maior Tempo Médio</h3>
-        <div class="panel-subtitle">Tempo médio em bancada (com minutos exatos em cada barra).</div>
-        <div style="height: 280px;">
-          <canvas id="chartMotoristas"></canvas>
-        </div>
-      </div>
-    </div>
-
-    <!-- Tabela Consolidada de Colaboradores / Auditores -->
-    <div class="panel-card" style="margin-top: 20px;">
-      <h3>Desempenho por Colaborador / Auditor de Bancada</h3>
-      <div class="panel-subtitle">Resumo consolidado de rotas, tempo médio auditado e conformidade individual.</div>
-      
-      <div class="table-container">
-        <table id="table-colaboradores">
-          <thead>
-            <tr>
-              <th>Colaborador / Auditor</th>
-              <th>Total Rotas</th>
-              <th>Tempo Médio (MM:SS)</th>
-              <th>Tempo (Min Dec)</th>
-              <th>Rotas OK</th>
-              <th>Rotas NOK</th>
-              <th>Aderência SLA</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody id="tbody-colaboradores">
-            <!-- Preenchido dinamicamente -->
-          </tbody>
-        </table>
-      </div>
-    </div>
+  <div style="display:flex;gap:10px;align-items:center">
+    <div class="sync"><span class="dot" id="dot"></span><span id="sync">Conectando...</span></div>
+    <button class="btn" id="btn-refresh">🔄 Atualizar</button>
   </div>
+</header>
 
-  <!-- ==================== TELA 3: OCUPAÇÃO & OCIOSIDADE ==================== -->
-  <div id="view-ociosidade" style="display: none;">
-    <div class="kpi-row">
-      <div class="kpi-card">
-        <h4>Capacidade Máxima Físico</h4>
-        <div class="val">30 Vagas</div>
-        <div class="sub">20 Carros + 10 Motos</div>
-      </div>
-      <div class="kpi-card card-ok">
-        <h4>Pico de Ocupação</h4>
-        <div class="val">38 Rotas/h</div>
-        <div class="sub">Faixa das 09h00 (Capacidade Máxima)</div>
-      </div>
-      <div class="kpi-card card-warn">
-        <h4>Ociosidade Média (Tarde)</h4>
-        <div class="val">68.5%</div>
-        <div class="sub">A partir das 12h00</div>
-      </div>
-      <div class="kpi-card">
-        <h4>Total Rotas Concluídas</h4>
-        <div class="val">182</div>
-        <div class="sub">100% Ops Clock Acumulado</div>
-      </div>
-    </div>
+<div class="alert" id="alert"></div>
 
-    <!-- Gráfico do Ops Clock Acumulado (Imagem do Usuário) -->
-    <div class="panel-card">
-      <h3>Acompanhamento Operacional - Liberação de Rotas e Ops Clock</h3>
-      <div class="panel-subtitle">Total: 182 Rotas Ativas (Exibição de barras com quantidade e curva acumulada percentual).</div>
-      <div style="height: 340px;">
-        <canvas id="chartOpsClock"></canvas>
-      </div>
-    </div>
+<!-- OPERAÇÃO -->
+<div id="view-operacao">
+  <div class="kpis">
+    <div class="kpi"><h4>Rotas monitoradas</h4><div class="v" id="k-total">0</div><div class="s">Base Audit T0</div></div>
+    <div class="kpi nok"><h4>Estouros de SLA</h4><div class="v" id="k-nok" style="color:#f87171">0</div><div class="s">Acima de 10 min</div></div>
+    <div class="kpi warn"><h4>Pendentes de justificativa</h4><div class="v" id="k-pend" style="color:#fbbf24">0</div><div class="s">Aguardando preenchimento</div></div>
+    <div class="kpi ok"><h4>Aderência</h4><div class="v" id="k-ader" style="color:#34d399">–</div><div class="s">Rotas ≤ 10 min</div></div>
   </div>
-
-  <!-- ==================== MODAL DE JUSTIFICATIVA ==================== -->
-  <div class="modal-overlay" id="modal-justificativa">
-    <div class="modal-box">
-      <h3>Justificar Rota (> 10 min)</h3>
-      <p id="modal-info">Target ID: AT... • Duração: 00:00</p>
-
-      <label style="font-size: 0.85rem; color: var(--text-muted); display: block; margin-bottom: 6px;">Selecione o Motivo Operacional:</label>
-      <select id="select-motivo">
-        <option value="Pacote Retirado (Fora de Rota)">Pacote Retirado (Fora de Rota)</option>
-        <option value="Verificação de Avaria">Verificação de Avaria</option>
-        <option value="Problemas Sistêmicos">Problemas Sistêmicos</option>
-        <option value="Problemas de Equipamento">Problemas de Equipamento</option>
-        <option value="Atraso do Motorista">Atraso do Motorista</option>
-        <option value="Recontagem">Recontagem</option>
-        <option value="Reconferência">Reconferência</option>
+  <div class="bar">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <label>Buscar:</label><input id="op-search" placeholder="Target ID, Cage, Auditor...">
+      <label>Filtro:</label>
+      <select id="op-filter">
+        <option value="NOK_PENDENTE">Pendentes de justificativa</option>
+        <option value="NOK">Todas > 10 min</option>
+        <option value="ATIVAS">Rotas em andamento</option>
+        <option value="OK">Conformes</option>
+        <option value="TODOS">Todas</option>
       </select>
-
-      <div class="modal-actions">
-        <button class="btn-action" onclick="fecharModal()">Cancelar</button>
-        <button class="btn-justificar" style="padding: 8px 18px;" onclick="salvarJustificativa()">Gravar na Planilha</button>
-      </div>
     </div>
+    <div style="font-size:.82rem;color:var(--mut)">Próxima atualização em <strong id="timer" style="color:#fff">–</strong></div>
   </div>
-
-  <!-- Footer -->
-  <footer>
-    <p>Projeto de Gestão Operacional & Monitoramento Shopee Express • <strong>Hub RJ (Itaboraí)</strong></p>
-    <p>Criado por <strong>Vitor Elias</strong> com auxílio de inteligência operacional de <strong>Gemini</strong></p>
-  </footer>
-
-  <script>
-    // Ativa o plugin de labels diretos do Chart.js
-    Chart.register(ChartDataLabels);
-
-    const API_URL = "https://script.google.com/macros/s/AKfycbzEyL0CUUvve7Sf7hJFJiSoHKThLYehOLsIGtVLsXijW81fNZZ7o3-8ulWfhW-RxuVW/exec";
-
-    let dbT0 = [];
-    let dbHistorico = [];
-    let dbJustificativas = {};
-    let itemSelecionado = null;
-
-    let countdownSeconds = 5;
-    let countdownInterval = null;
-
-    // Instâncias de Gráficos
-    let chartEvolucao = null;
-    let chartConformidade = null;
-    let chartMotivos = null;
-    let chartMotoristas = null;
-    let chartOpsClock = null;
-
-    // Inicialização
-    window.addEventListener("DOMContentLoaded", () => {
-      carregarDados();
-
-      // Loop de 1s para o cronômetro visual em tempo real das rotas ativas
-      setInterval(atualizarCronometrosAoVivo, 1000);
-
-      // Contador para a sincronização de 5 segundos
-      countdownInterval = setInterval(() => {
-        countdownSeconds--;
-        document.getElementById('timer-refresh').innerText = `${countdownSeconds}s`;
-        if (countdownSeconds <= 0) {
-          countdownSeconds = 5;
-          carregarDados(true);
-        }
-      }, 1000);
-    });
-
-    function switchView(tab, evt) {
-      document.querySelectorAll('.nav-tab-btn').forEach(b => b.classList.remove('active'));
-      if (evt && evt.target) evt.target.classList.add('active');
-
-      document.getElementById('view-operacao').style.display = tab === 'operacao' ? 'block' : 'none';
-      document.getElementById('view-gerencial').style.display = tab === 'gerencial' ? 'block' : 'none';
-      document.getElementById('view-ociosidade').style.display = tab === 'ociosidade' ? 'block' : 'none';
-
-      if (tab === 'gerencial') atualizarPainelGerencial();
-      if (tab === 'ociosidade') renderizarGraficoOpsClock();
-    }
-
-    // Requisição dos Dados
-    async function carregarDados(isSilent = false) {
-      const dot = document.getElementById('status-dot');
-      const syncText = document.getElementById('sync-text');
-
-      if (!isSilent) {
-        dot.classList.add('syncing');
-        syncText.innerText = 'Sincronizando...';
-      }
-
-      try {
-        const resp = await fetch(API_URL);
-        const data = await resp.json();
-        dbT0 = data.t0 || [];
-        dbHistorico = data.historico || [];
-        dbJustificativas = data.justificativas || {};
-
-        dot.classList.remove('syncing');
-        syncText.innerText = 'Ao Vivo (Sincronizado)';
-      } catch (err) {
-        console.warn("Utilizando dados espelhados do Hub:", err);
-        carregarBaseConsolidadaPDF();
-        dot.classList.remove('syncing');
-        syncText.innerText = 'Modo Resiliente Ativo';
-      }
-
-      renderizarOperacao();
-      preencherFiltrosGerencial();
-      if (document.getElementById('view-gerencial').style.display === 'block') {
-        atualizarPainelGerencial();
-      }
-    }
-
-    // Renderização Operacional (T0)
-    function renderizarOperacao() {
-      const tbody = document.getElementById('op-table-body');
-      tbody.innerHTML = '';
-
-      const busca = document.getElementById('op-search').value.toLowerCase();
-      const filtroSla = document.getElementById('op-filter-sla').value;
-
-      let total = 0;
-      let nok = 0;
-      let pendentes = 0;
-      const agora = new Date();
-
-      dbT0.forEach(row => {
-        const start = new Date(row.startTime);
-        const end = row.endTime ? new Date(row.endTime) : agora;
-        const isEmAndamento = !row.endTime;
-        
-        let diffSec = Math.max(0, Math.floor((end - start) / 1000));
-        let diffMin = diffSec / 60;
-
-        let isNok = diffMin > 10;
-        let jaJustificado = !!dbJustificativas[row.targetId];
-
-        total++;
-        if (isNok) nok++;
-        if (isNok && !jaJustificado) pendentes++;
-
-        // Filtros
-        if (filtroSla === 'NOK_PENDENTE' && (!isNok || jaJustificado)) return;
-        if (filtroSla === 'NOK' && !isNok) return;
-        if (filtroSla === 'OK' && isNok) return;
-        if (filtroSla === 'ATIVAS' && !isEmAndamento) return;
-
-        if (busca) {
-          const matchTarget = (row.targetId || '').toLowerCase().includes(busca);
-          const matchCage = (row.cage || '').toLowerCase().includes(busca);
-          const matchAuditor = (row.auditor || '').toLowerCase().includes(busca);
-          if (!matchTarget && !matchCage && !matchAuditor) return;
-        }
-
-        const tr = document.createElement('tr');
-        tr.setAttribute('data-target-id', row.targetId);
-        tr.setAttribute('data-start-time', row.startTime);
-        tr.setAttribute('data-has-end', row.endTime ? '1' : '0');
-
-        const duracaoFormatada = formatarSegundosMMSS(diffSec);
-
-        tr.innerHTML = `
-          <td><strong>${row.targetId}</strong></td>
-          <td><span style="color: #38bdf8; font-weight: bold;">${row.cage || '-'}</span></td>
-          <td>${row.qty || 0}</td>
-          <td>${limparNome(row.auditor)}</td>
-          <td>${formatarHora(row.startTime)}</td>
-          <td>${row.endTime ? formatarHora(row.endTime) : '<span class="badge badge-warn">Em conferência...</span>'}</td>
-          <td class="col-tempo"><strong style="color: ${isNok ? '#f87171' : (diffMin > 7 ? '#fbbf24' : '#34d399')}; font-size: 0.95rem;">${duracaoFormatada}</strong></td>
-          <td><span class="badge ${isNok ? 'badge-nok' : 'badge-ok'}">${isNok ? 'NOK (>10m)' : 'OK'}</span></td>
-          <td>${jaJustificado ? `<span class="badge badge-justificado">${dbJustificativas[row.targetId]}</span>` : (isNok ? '<span style="color:#94a3b8; font-size:0.75rem;">Aguardando...</span>' : '-')}</td>
-          <td>
-            ${isNok && !jaJustificado ? 
-              `<button class="btn-justificar" onclick="abrirModalJustificar('${row.targetId}', '${duracaoFormatada}')">Justificar</button>` : 
-              (jaJustificado ? `<span style="color: #34d399; font-weight:bold;">✓ Salvo</span>` : `<span style="color: #64748b;">-</span>`)}
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-
-      document.getElementById('op-kpi-total').innerText = total;
-      document.getElementById('op-kpi-nok').innerText = nok;
-      document.getElementById('op-kpi-pendentes').innerText = pendentes;
-      const aderencia = total > 0 ? (((total - nok) / total) * 100).toFixed(1) : 100;
-      document.getElementById('op-kpi-aderencia').innerText = `${aderencia}%`;
-    }
-
-    function atualizarCronometrosAoVivo() {
-      const rows = document.querySelectorAll('#op-table-body tr');
-      const agora = new Date();
-
-      rows.forEach(tr => {
-        const hasEnd = tr.getAttribute('data-has-end') === '1';
-        if (hasEnd) return; // Se a rota já concluiu, o tempo é fixo
-
-        const startTimeStr = tr.getAttribute('data-start-time');
-        if (!startTimeStr) return;
-
-        const start = new Date(startTimeStr);
-        const diffSec = Math.max(0, Math.floor((agora - start) / 1000));
-        const diffMin = diffSec / 60;
-        const duracaoFormatada = formatarSegundosMMSS(diffSec);
-
-        const tempoEl = tr.querySelector('.col-tempo strong');
-        if (tempoEl) {
-          tempoEl.innerText = duracaoFormatada;
-          tempoEl.style.color = diffMin > 10 ? '#f87171' : (diffMin > 7 ? '#fbbf24' : '#34d399');
-        }
-      });
-    }
-
-    function filtrarOperacao() {
-      renderizarOperacao();
-    }
-
-    // Modal de Justificativa
-    function abrirModalJustificar(targetId, duracao) {
-      itemSelecionado = { targetId, duracao };
-      document.getElementById('modal-info').innerText = `Target ID: ${targetId} • Duração de Bancada: ${duracao}`;
-      document.getElementById('modal-justificativa').style.display = 'flex';
-    }
-
-    function fecharModal() {
-      document.getElementById('modal-justificativa').style.display = 'none';
-      itemSelecionado = null;
-    }
-
-    async function salvarJustificativa() {
-      if (!itemSelecionado) return;
-      const motivo = document.getElementById('select-motivo').value;
-      const targetId = itemSelecionado.targetId;
-
-      dbJustificativas[targetId] = motivo;
-      fecharModal();
-      renderizarOperacao();
-
-      try {
-        await fetch(API_URL, {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ targetId, motivo })
-        });
-      } catch (e) {
-        console.error("Erro no envio:", e);
-      }
-    }
-
-    // Painel Gerencial & Filtros
-    function preencherFiltrosGerencial() {
-      const selectData = document.getElementById('ger-filter-data');
-      const selectColab = document.getElementById('ger-filter-colab');
-
-      const datas = [...new Set(dbHistorico.map(i => i.data).filter(Boolean))].sort();
-      const colabs = [...new Set(dbHistorico.map(i => limparNome(i.colaborador)).filter(Boolean))].sort();
-
-      const curData = selectData.value;
-      const curColab = selectColab.value;
-
-      selectData.innerHTML = '<option value="TODOS">Todos os Dias (Semana Consolidada)</option>';
-      datas.forEach(d => {
-        selectData.innerHTML += `<option value="${d}">${formatarDataBR(d)}</option>`;
-      });
-
-      selectColab.innerHTML = '<option value="TODOS">Todos os Colaboradores</option>';
-      colabs.forEach(c => {
-        selectColab.innerHTML += `<option value="${c}">${c}</option>`;
-      });
-
-      selectData.value = curData || 'TODOS';
-      selectColab.value = curColab || 'TODOS';
-    }
-
-    function resetarFiltrosGerencial() {
-      document.getElementById('ger-filter-data').value = 'TODOS';
-      document.getElementById('ger-filter-colab').value = 'TODOS';
-      document.getElementById('ger-filter-status').value = 'TODOS';
-      atualizarPainelGerencial();
-    }
-
-    function atualizarPainelGerencial() {
-      const fData = document.getElementById('ger-filter-data').value;
-      const fColab = document.getElementById('ger-filter-colab').value;
-      const fStatus = document.getElementById('ger-filter-status').value;
-
-      let filtrados = dbHistorico.filter(item => {
-        if (fData !== 'TODOS' && item.data !== fData) return false;
-        if (fColab !== 'TODOS' && limparNome(item.colaborador) !== fColab) return false;
-        if (fStatus === 'OK' && item.condicao !== 'OK') return false;
-        if (fStatus === 'NOK' && item.condicao !== 'NOK') return false;
-        return true;
-      });
-
-      // Cálculo dos KPIs
-      const total = filtrados.length;
-      const nok = filtrados.filter(i => i.condicao === 'NOK' || i.minutosRota > 10).length;
-      const ok = total - nok;
-      const aderencia = total > 0 ? ((ok / total) * 100).toFixed(1) : 0;
-      const somaMin = filtrados.reduce((acc, cur) => acc + (cur.minutosRota || 0), 0);
-      const mediaDec = total > 0 ? (somaMin / total) : 0;
-
-      document.getElementById('ger-kpi-total').innerText = total;
-      document.getElementById('ger-kpi-nok').innerHTML = `${nok} <span style="font-size: 1rem; color: #94a3b8;">(${total > 0 ? ((nok/total)*100).toFixed(1) : 0}%)</span>`;
-      document.getElementById('ger-kpi-aderencia').innerText = `${aderencia}%`;
-      document.getElementById('ger-kpi-qtd-ok').innerText = `${ok} rotas OK (≤ 10 min)`;
-      document.getElementById('ger-kpi-media').innerText = formatarMinutosMMSS(mediaDec);
-
-      const diffSec = Math.round((10 - mediaDec) * 60);
-      const diffEl = document.getElementById('ger-kpi-diff-meta');
-      if (mediaDec <= 10) {
-        diffEl.innerText = `▼ ${formatarSegundosMMSS(Math.abs(diffSec))} vs Meta (10:00)`;
-        diffEl.style.color = '#34d399';
-      } else {
-        diffEl.innerText = `▲ +${formatarSegundosMMSS(Math.abs(diffSec))} acima da Meta`;
-        diffEl.style.color = '#f87171';
-      }
-
-      renderizarGraficosGerenciais(filtrados);
-      renderizarTabelaColaboradores(filtrados);
-    }
-
-    function renderizarGraficosGerenciais(dados) {
-      // 1. Gráfico Diário com Valores Impressos
-      const diasMap = {};
-      dados.forEach(d => {
-        if (!d.data) return;
-        if (!diasMap[d.data]) diasMap[d.data] = [];
-        diasMap[d.data].push(d.minutosRota);
-      });
-
-      const labelsDias = Object.keys(diasMap).sort();
-      const mediasDias = labelsDias.map(k => {
-        const arr = diasMap[k];
-        return parseFloat((arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(2));
-      });
-
-      if (chartEvolucao) chartEvolucao.destroy();
-      chartEvolucao = new Chart(document.getElementById('chartEvolucao'), {
-        type: 'line',
-        data: {
-          labels: labelsDias.map(formatarDataBR),
-          datasets: [
-            {
-              label: 'Tempo Médio (min)',
-              data: mediasDias,
-              borderColor: '#ee4d2d',
-              backgroundColor: 'rgba(238, 77, 45, 0.15)',
-              fill: true,
-              tension: 0.25,
-              borderWidth: 2.5,
-              pointRadius: 6,
-              pointBackgroundColor: '#ee4d2d',
-              datalabels: {
-                align: 'top',
-                color: '#fff',
-                font: { weight: 'bold', size: 11 },
-                formatter: (value) => `${value.toFixed(2)}m`
-              }
-            },
-            {
-              label: 'Meta (10.00m)',
-              data: Array(labelsDias.length).fill(10),
-              borderColor: '#ef4444',
-              borderDash: [6, 6],
-              borderWidth: 1.5,
-              pointRadius: 0,
-              fill: false,
-              datalabels: { display: false }
-            }
-          ]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { labels: { color: '#94a3b8' } }
-          },
-          scales: {
-            y: {
-              min: 5,
-              max: 12,
-              grid: { color: '#223259' },
-              ticks: { color: '#94a3b8', callback: (v) => `${v}m` }
-            },
-            x: { grid: { color: '#223259' }, ticks: { color: '#94a3b8' } }
-          }
-        }
-      });
-
-      // 2. Gráfico de Conformidade (Donut com Clique Interativo)
-      const nok = dados.filter(i => i.condicao === 'NOK' || i.minutosRota > 10).length;
-      const ok = dados.length - nok;
-      const total = ok + nok;
-
-      if (chartConformidade) chartConformidade.destroy();
-      chartConformidade = new Chart(document.getElementById('chartConformidade'), {
-        type: 'doughnut',
-        data: {
-          labels: ['OK (≤10m)', 'NOK (>10m)'],
-          datasets: [{
-            data: [ok, nok],
-            backgroundColor: ['#10b981', '#ee4d2d'],
-            borderWidth: 0,
-            hoverOffset: 8
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          onClick: (evt, elements) => {
-            if (elements.length > 0) {
-              const idx = elements[0].index;
-              document.getElementById('ger-filter-status').value = idx === 0 ? 'OK' : 'NOK';
-              atualizarPainelGerencial();
-            }
-          },
-          plugins: {
-            legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 12 } } },
-            datalabels: {
-              color: '#fff',
-              font: { weight: 'bold', size: 13 },
-              formatter: (value) => total > 0 ? `${((value / total) * 100).toFixed(1)}%` : '0%'
-            }
-          }
-        }
-      });
-
-      // 3. Gráfico de Ofensores / Motivos
-      const motivosMap = {};
-      dados.forEach(d => {
-        let m = d.motivo || 'Não Mapeado';
-        motivosMap[m] = (motivosMap[m] || 0) + 1;
-      });
-
-      const labelsMotivos = Object.keys(motivosMap);
-      const dataMotivos = Object.values(motivosMap);
-
-      if (chartMotivos) chartMotivos.destroy();
-      chartMotivos = new Chart(document.getElementById('chartMotivos'), {
-        type: 'bar',
-        data: {
-          labels: labelsMotivos,
-          datasets: [{
-            label: 'Qtd Registrada',
-            data: dataMotivos,
-            backgroundColor: '#0284c7',
-            borderRadius: 4,
-            datalabels: {
-              anchor: 'end',
-              align: 'end',
-              color: '#fff',
-              font: { weight: 'bold', size: 11 }
-            }
-          }]
-        },
-        options: {
-          indexAxis: 'y',
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
-          scales: {
-            x: { grid: { color: '#223259' }, ticks: { color: '#94a3b8' } },
-            y: { grid: { display: false }, ticks: { color: '#94a3b8' } }
-          }
-        }
-      });
-
-      // 4. Top Motoristas com Maior Tempo Médio
-      const motoristaMap = {};
-      dados.forEach(d => {
-        const m = d.motorista;
-        if (!m || m === 'Não Mapeado') return;
-        if (!motoristaMap[m]) motoristaMap[m] = [];
-        motoristaMap[m].push(d.minutosRota);
-      });
-
-      const topDrivers = Object.keys(motoristaMap).map(k => {
-        const arr = motoristaMap[k];
-        const avg = arr.reduce((a, b) => a + b, 0) / arr.length;
-        return { nome: k, media: avg };
-      }).sort((a, b) => b.media - a.media).slice(0, 10);
-
-      if (chartMotoristas) chartMotoristas.destroy();
-      chartMotoristas = new Chart(document.getElementById('chartMotoristas'), {
-        type: 'bar',
-        data: {
-          labels: topDrivers.map(d => d.nome.length > 22 ? d.nome.substring(0, 22) + '...' : d.nome),
-          datasets: [{
-            label: 'Minutos',
-            data: topDrivers.map(d => parseFloat(d.media.toFixed(2))),
-            backgroundColor: '#ee4d2d',
-            borderRadius: 4,
-            datalabels: {
-              anchor: 'end',
-              align: 'start',
-              color: '#fff',
-              font: { weight: 'bold', size: 10 },
-              formatter: (v) => `${formatarMinutosMMSS(v)} (${v}m)`
-            }
-          }]
-        },
-        options: {
-          indexAxis: 'y',
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
-          scales: {
-            x: { max: 18, grid: { color: '#223259' }, ticks: { color: '#94a3b8', callback: v => `${v}m` } },
-            y: { grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 10 } } }
-          }
-        }
-      });
-    }
-
-    function renderizarTabelaColaboradores(dados) {
-      const tbody = document.getElementById('tbody-colaboradores');
-      tbody.innerHTML = '';
-
-      const colabMap = {};
-      dados.forEach(d => {
-        const c = limparNome(d.colaborador);
-        if (!c || c === 'N/A') return;
-        if (!colabMap[c]) colabMap[c] = { total: 0, somaMin: 0, ok: 0, nok: 0 };
-        colabMap[c].total++;
-        colabMap[c].somaMin += d.minutosRota || 0;
-        if (d.condicao === 'OK' && d.minutosRota <= 10) colabMap[c].ok++;
-        else colabMap[c].nok++;
-      });
-
-      const lista = Object.keys(colabMap).map(k => {
-        const item = colabMap[k];
-        const media = item.total > 0 ? (item.somaMin / item.total) : 0;
-        const aderencia = item.total > 0 ? ((item.ok / item.total) * 100) : 0;
-        return { nome: k, total: item.total, media, ok: item.ok, nok: item.nok, aderencia };
-      }).sort((a, b) => b.total - a.total);
-
-      lista.forEach(c => {
-        const tr = document.createElement('tr');
-        const isConforme = c.aderencia >= 70;
-        tr.innerHTML = `
-          <td><strong>${c.nome}</strong></td>
-          <td>${c.total}</td>
-          <td><b>${formatarMinutosMMSS(c.media)}</b></td>
-          <td>${c.media.toFixed(2)}m</td>
-          <td><span style="color: #34d399; font-weight: bold;">${c.ok}</span></td>
-          <td><span style="color: #f87171; font-weight: bold;">${c.nok}</span></td>
-          <td><strong>${c.aderencia.toFixed(1)}%</strong></td>
-          <td><span class="badge ${isConforme ? 'badge-ok' : 'badge-nok'}">${isConforme ? 'Conforme' : 'Atenção'}</span></td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
-
-    // Gráfico de Ocupação & Ops Clock Acumulado
-    function renderizarGraficoOpsClock() {
-      const faixas = ['08h', '09h', '10h', '11h', '12h', '13h', '14h'];
-      const qtdRotas = [33, 38, 37, 33, 28, 12, 1];
-      const acumPerc = [18.1, 39.0, 59.3, 77.5, 92.9, 99.5, 100.0];
-
-      if (chartOpsClock) chartOpsClock.destroy();
-      chartOpsClock = new Chart(document.getElementById('chartOpsClock'), {
-        data: {
-          labels: faixas,
-          datasets: [
-            {
-              type: 'bar',
-              label: 'Quantidade de Rotas',
-              data: qtdRotas,
-              backgroundColor: '#2563eb',
-              borderRadius: 4,
-              yAxisID: 'yBar',
-              datalabels: {
-                anchor: 'end',
-                align: 'top',
-                color: '#fff',
-                font: { weight: 'bold' }
-              }
-            },
-            {
-              type: 'line',
-              label: '% Ops Clock Acumulado',
-              data: acumPerc,
-              borderColor: '#dc2626',
-              backgroundColor: '#dc2626',
-              borderWidth: 2.5,
-              pointRadius: 5,
-              yAxisID: 'yLine',
-              datalabels: {
-                anchor: 'top',
-                align: 'top',
-                color: '#f87171',
-                formatter: v => `${v.toFixed(1)}%`,
-                font: { weight: 'bold' }
-              }
-            }
-          ]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { labels: { color: '#94a3b8' } }
-          },
-          scales: {
-            yBar: {
-              position: 'left',
-              max: 45,
-              grid: { color: '#223259' },
-              ticks: { color: '#94a3b8' }
-            },
-            yLine: {
-              position: 'right',
-              max: 100,
-              grid: { display: false },
-              ticks: { color: '#f87171', callback: v => `${v}%` }
-            },
-            x: { grid: { color: '#223259' }, ticks: { color: '#94a3b8' } }
-          }
-        }
-      });
-    }
-
-    // Auxiliares de Formatação
-    function limparNome(nome) {
-      if (!nome) return 'N/A';
-      return nome.replace(/\[.*?\]/g, '').trim();
-    }
-
-    function formatarHora(str) {
-      if (!str) return '-';
-      const d = new Date(str);
-      return isNaN(d.getTime()) ? str : d.toLocaleTimeString('pt-BR');
-    }
-
-    function formatarDataBR(iso) {
-      if (!iso) return '-';
-      const parts = iso.split('-');
-      return parts.length === 3 ? `${parts[2]}/${parts[1]}` : iso;
-    }
-
-    function formatarSegundosMMSS(totalSec) {
-      const min = Math.floor(totalSec / 60);
-      const sec = Math.floor(totalSec % 60);
-      return `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
-    }
-
-    function formatarMinutosMMSS(minDec) {
-      const totalSec = Math.round(minDec * 60);
-      return formatarSegundosMMSS(totalSec);
-    }
-
-    // Base do Relatório PDF Integrada (Semana 15/09 a 19/09)
-    function carregarBaseConsolidadaPDF() {
-      dbT0 = [
-        { operacao: "HUB_19", targetId: "AT20260921A2ZMP", cage: "B-24", qty: 97, startTime: new Date(Date.now() - 480000).toISOString(), endTime: null, auditor: "SILVIA DE OLIVEIRA", status: "Em Andamento" },
-        { operacao: "HUB_19", targetId: "AT20260921A2ZHE", cage: "A-4", qty: 89, startTime: new Date(Date.now() - 670000).toISOString(), endTime: null, auditor: "CAROLINA CARNEIRO", status: "Em Andamento" },
-        { operacao: "HUB_19", targetId: "AT20260921A3AA", cage: "B-7", qty: 91, startTime: new Date(Date.now() - 250000).toISOString(), endTime: null, auditor: "RENATA FERREIRA", status: "Em Andamento" },
-        { operacao: "HUB_19", targetId: "AT20260921A2ZL", cage: "C-7", qty: 105, startTime: "2026-09-21 10:10:20", endTime: "2026-09-21 10:26:18", auditor: "RODRIGO SOUZA LIMA", status: "Concluido" },
-        { operacao: "HUB_19", targetId: "AT20260921A3BF", cage: "C-13", qty: 112, startTime: "2026-09-21 10:47:00", endTime: "2026-09-21 10:54:50", auditor: "CAROLINA CARNEIRO", status: "Concluido" }
-      ];
-
-      // Base histórica idêntica ao PDF (772 rotas, média 8.54m, aderência 71.8%)
-      dbHistorico = [
-        { data: "2026-09-15", targetId: "R1", cage: "A-1", minutosRota: 9.36, condicao: "OK", colaborador: "PHAMELLA DE ABREU", motorista: "BRUNO SOUZA DA SILVA", motivo: "Não Mapeado" },
-        { data: "2026-09-16", targetId: "R2", cage: "A-2", minutosRota: 8.61, condicao: "OK", colaborador: "CAROLINA CARNEIRO", motorista: "SERGIO SANTOS DO NASCIMENTO", motivo: "Pct Retirado (Fora de Rota)" },
-        { data: "2026-09-17", targetId: "R3", cage: "A-3", minutosRota: 8.59, condicao: "OK", colaborador: "CRISLAINE DA SILVA", motorista: "MAYCON VINICIUS RAMOS", motivo: "Não Mapeado" },
-        { data: "2026-09-18", targetId: "R4", cage: "A-4", minutosRota: 7.96, condicao: "OK", colaborador: "MARIA EDUARDA", motorista: "CLAYTON DOS SANTOS", motivo: "Não Mapeado" },
-        { data: "2026-09-19", targetId: "R5", cage: "A-5", minutosRota: 8.14, condicao: "OK", colaborador: "INGRID IOHANA", motorista: "LUAN FERREIRA", motivo: "Erro de Contagem" }
-      ];
-    }
-  </script>
+  <div class="panel">
+    <h3>Rotas na bancada (ao vivo)</h3><div class="sub">Cronômetro segundo a segundo nas rotas sem horário final.</div>
+    <div class="tw"><table>
+      <thead><tr><th>Target ID</th><th>Cage</th><th>Pacotes</th><th>Auditor</th><th>Início</th><th>Fim</th><th>Duração</th><th>Condição</th><th>Justificativa</th><th>Ação</th></tr></thead>
+      <tbody id="op-body"></tbody>
+    </table></div>
+  </div>
+</div>
+
+<!-- GERENCIAL -->
+<div id="view-gerencial" style="display:none">
+  <div class="bar">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <label>Dia:</label><select id="g-data"></select>
+      <label>Colaborador:</label><select id="g-colab"></select>
+      <label>Condição:</label>
+      <select id="g-status"><option value="TODOS">Todas</option><option value="OK">OK (≤ 10 min)</option><option value="NOK">NOK (> 10 min)</option></select>
+    </div>
+    <button class="btn" id="g-reset">Limpar filtros</button>
+  </div>
+  <div class="kpis">
+    <div class="kpi"><h4>Tempo médio de bancada</h4><div class="v" id="g-media">–</div><div class="s" id="g-meta">–</div></div>
+    <div class="kpi ok"><h4>Aderência ao SLA</h4><div class="v" id="g-ader" style="color:#34d399">–</div><div class="s" id="g-okq">–</div></div>
+    <div class="kpi nok"><h4>Bancadas > 10 min</h4><div class="v" id="g-nok" style="color:#f87171">–</div><div class="s">Rotas com tempo excedido</div></div>
+    <div class="kpi"><h4>Volume auditado</h4><div class="v" id="g-total">–</div><div class="s">Rotas no filtro atual</div></div>
+  </div>
+  <div class="grid2 main">
+    <div class="panel"><h3>Tempo médio diário</h3><div class="sub">Linha de meta em 10 min.</div><div class="ch"><canvas id="c-evo"></canvas></div></div>
+    <div class="panel"><h3>Conformidade</h3><div class="sub">Clique numa fatia para filtrar.</div><div class="ch"><canvas id="c-conf"></canvas></div></div>
+  </div>
+  <div class="grid2">
+    <div class="panel"><h3>Ofensores (motivos)</h3><div class="sub">Quantidade por motivo.</div><div class="ch"><canvas id="c-mot"></canvas></div></div>
+    <div class="panel"><h3>Motoristas com maior tempo médio</h3><div class="sub">Top 10.</div><div class="ch"><canvas id="c-drv"></canvas></div></div>
+  </div>
+  <div class="panel" style="margin-top:16px">
+    <h3>Desempenho por colaborador</h3><div class="sub">Rotas, tempo médio e aderência individual (Conforme ≥ 70%).</div>
+    <div class="tw"><table>
+      <thead><tr><th>Colaborador</th><th>Rotas</th><th>Tempo médio</th><th>OK</th><th>NOK</th><th>Aderência</th><th>Status</th></tr></thead>
+      <tbody id="colab-body"></tbody>
+    </table></div>
+  </div>
+</div>
+
+<!-- OCUPAÇÃO -->
+<div id="view-ociosidade" style="display:none">
+  <div class="kpis">
+    <div class="kpi"><h4>Capacidade física</h4><div class="v">30 vagas</div><div class="s">20 carros + 10 motos</div></div>
+    <div class="kpi ok"><h4>Pico de rotas/hora</h4><div class="v" id="o-pico">–</div><div class="s" id="o-pico-h">–</div></div>
+    <div class="kpi warn"><h4>Vagas ocupadas agora</h4><div class="v" id="o-agora">–</div><div class="s">Rotas ativas no T0</div></div>
+    <div class="kpi"><h4>Total de rotas (T0)</h4><div class="v" id="o-total">–</div><div class="s">Por horário de início</div></div>
+  </div>
+  <div class="panel"><h3>Liberação de rotas por hora e % acumulado</h3><div class="sub">Calculado com os horários reais da base Audit T0.</div>
+    <div class="ch" style="height:340px"><canvas id="c-ops"></canvas></div></div>
+</div>
+
+<!-- MODAL -->
+<div class="modal" id="modal">
+  <div class="mbox">
+    <h3>Justificar rota (> 10 min)</h3>
+    <p id="m-info" style="font-size:.85rem;color:var(--mut);margin-top:6px"></p>
+    <select id="m-motivo">
+      <option>Pacote Retirado (Fora de Rota)</option><option>Verificação de Avaria</option><option>Problemas Sistêmicos</option>
+      <option>Problemas de Equipamento</option><option>Atraso do Motorista</option><option>Recontagem</option><option>Reconferência</option>
+      <option value="__outro">Outro (digitar)</option>
+    </select>
+    <input id="m-outro" placeholder="Descreva o motivo" maxlength="80" style="display:none">
+    <div class="mact"><button class="btn" id="m-cancel">Cancelar</button><button class="bj" style="padding:8px 18px" id="m-save">Gravar na planilha</button></div>
+  </div>
+</div>
+
+<footer>
+  <p>Projeto de Gestão Operacional • Shopee Express • <strong>Hub RJ (Itaboraí)</strong></p>
+  <p>Criado por <strong>Vitor Elias</strong> com auxílio do <strong>Gemini</strong></p>
+</footer>
+
+<script>
+Chart.register(ChartDataLabels);
+
+// ===== CONFIG =====
+const API_URL = "https://script.google.com/macros/s/AKfycbyc3CnTifD0wzB0ByYSUVuemQpYzHwpqi04D40mh1KuSdU70cfZ8vuoY1PmEYvBEk1G/exec";
+const SLA_MIN = 10;          // meta em minutos
+const WARN_MIN = 7;          // amarelo a partir daqui
+const POLL_MS = 5000;
+const CAPACIDADE = 30;
+const PEND_KEY = "spx_just_pendentes";
+
+// ===== ESTADO (só dados reais; nunca dados de exemplo) =====
+let dbT0 = [], dbHist = [], dbJust = {};
+let ultimaAtualizacao = null, lastHash = "", pollTimer = null, countdown = POLL_MS / 1000;
+let itemSel = null, tabAtual = "operacao", totalConf = 0;
+const charts = {};
+const $ = id => document.getElementById(id);
+
+// ===== HELPERS =====
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const parseData = s => { if (!s) return null; const d = new Date(String(s).replace(" ", "T")); return isNaN(d) ? null : d; };
+const limparNome = n => n ? String(n).replace(/\[.*?\]/g, "").trim() : "N/A";
+const hora = s => { const d = parseData(s); return d ? d.toLocaleTimeString("pt-BR") : "-"; };
+const dataBR = iso => { const p = String(iso || "").split("-"); return p.length === 3 ? `${p[2]}/${p[1]}` : iso; };
+const mmss = sec => `${String(Math.floor(sec / 60)).padStart(2, "0")}:${String(Math.floor(sec % 60)).padStart(2, "0")}`;
+const minToMMSS = m => mmss(Math.round(m * 60));
+const cor = m => m > SLA_MIN ? "#f87171" : m > WARN_MIN ? "#fbbf24" : "#34d399";
+const isNokHist = i => i.condicao === "NOK" || i.minutosRota > SLA_MIN;
+const lerPend = () => { try { return JSON.parse(localStorage.getItem(PEND_KEY) || "{}"); } catch { return {}; } };
+const gravarPend = o => { try { localStorage.setItem(PEND_KEY, JSON.stringify(o)); } catch {} };
+
+function duracao(row, agora) {
+  const s = parseData(row.startTime); if (!s) return null;
+  const e = row.endTime ? parseData(row.endTime) : agora;
+  return Math.max(0, Math.floor(((e || agora) - s) / 1000));
+}
+
+// ===== CARGA DE DADOS =====
+async function carregarDados() {
+  clearTimeout(pollTimer);
+  $("dot").className = "dot";
+  try {
+    const resp = await fetch(API_URL, { cache: "no-store" });
+    if (!resp.ok) throw new Error("HTTP " + resp.status);
+    const data = await resp.json();
+    dbT0 = Array.isArray(data.t0) ? data.t0 : [];
+    dbHist = Array.isArray(data.historico) ? data.historico : [];
+    dbJust = data.justificativas || {};
+    ultimaAtualizacao = new Date();
+    $("dot").className = "dot on";
+    $("sync").textContent = "Ao vivo • " + ultimaAtualizacao.toLocaleTimeString("pt-BR");
+    $("alert").style.display = "none";
+    reenviarPendentes();
+    const h = JSON.stringify([dbT0, dbHist, dbJust]);
+    if (h !== lastHash) { lastHash = h; preencherFiltros(); renderTudo(); }
+    else renderOperacao();
+  } catch (err) {
+    console.warn("Falha ao buscar dados:", err);
+    $("dot").className = "dot off";
+    $("sync").textContent = "Offline";
+    const al = $("alert");
+    al.style.display = "block";
+    al.textContent = ultimaAtualizacao
+      ? `⚠ Sem conexão com a planilha. Exibindo os últimos dados reais recebidos às ${ultimaAtualizacao.toLocaleTimeString("pt-BR")}.`
+      : "⚠ Não foi possível carregar os dados da planilha. Verifique a implantação do Apps Script (acesso: Qualquer pessoa) e tente novamente.";
+    renderOperacao();
+  }
+  countdown = POLL_MS / 1000;
+  pollTimer = setTimeout(carregarDados, POLL_MS);
+}
+
+// ===== JUSTIFICATIVAS (com fila de reenvio) =====
+function reenviarPendentes() {
+  const pend = lerPend();
+  Object.keys(pend).forEach(id => {
+    if (dbJust[id]) { delete pend[id]; return; }   // servidor já tem
+    enviarJustificativa(id, pend[id]);
+  });
+  gravarPend(pend);
+}
+function enviarJustificativa(targetId, motivo) {
+  return fetch(API_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ targetId, motivo }) })
+    .catch(e => console.error("Erro no envio:", e));
+}
+function abrirModal(id, dur) {
+  itemSel = { id, dur };
+  $("m-info").textContent = `Target ID: ${id} • Duração: ${dur}`;
+  $("m-outro").style.display = "none"; $("m-outro").value = ""; $("m-motivo").selectedIndex = 0;
+  $("modal").style.display = "flex";
+}
+function fecharModal() { $("modal").style.display = "none"; itemSel = null; }
+async function salvarJustificativa() {
+  if (!itemSel) return;
+  let motivo = $("m-motivo").value;
+  if (motivo === "__outro") { motivo = $("m-outro").value.trim(); if (!motivo) { $("m-outro").focus(); return; } }
+  const id = itemSel.id;
+  dbJust[id] = motivo;
+  const pend = lerPend(); pend[id] = motivo; gravarPend(pend);   // fica na fila até o servidor confirmar
+  fecharModal(); lastHash = ""; renderOperacao();
+  await enviarJustificativa(id, motivo);
+  setTimeout(carregarDados, 1500);
+}
+
+// ===== OPERAÇÃO =====
+function renderOperacao() {
+  const agora = new Date();
+  const busca = $("op-search").value.toLowerCase(), f = $("op-filter").value;
+  let total = 0, nok = 0, pend = 0, html = "";
+  const linhas = dbT0.map(r => {
+    const sec = duracao(r, agora); return { r, sec, min: (sec ?? 0) / 60 };
+  }).sort((a, b) => b.min - a.min);
+
+  linhas.forEach(({ r, sec, min }) => {
+    const ativa = !r.endTime, isNok = min > SLA_MIN, just = dbJust[r.targetId];
+    total++; if (isNok) nok++; if (isNok && !just) pend++;
+    if (f === "NOK_PENDENTE" && (!isNok || just)) return;
+    if (f === "NOK" && !isNok) return;
+    if (f === "OK" && isNok) return;
+    if (f === "ATIVAS" && !ativa) return;
+    if (busca && ![r.targetId, r.cage, r.auditor].some(v => String(v || "").toLowerCase().includes(busca))) return;
+    const d = sec == null ? "--:--" : mmss(sec);
+    html += `<tr data-start="${esc(r.startTime)}" data-ativa="${ativa ? 1 : 0}" data-nok="${isNok ? 1 : 0}">
+      <td><strong>${esc(r.targetId)}</strong></td>
+      <td><span style="color:#38bdf8;font-weight:700">${esc(r.cage || "-")}</span></td>
+      <td>${esc(r.qty || 0)}</td><td>${esc(limparNome(r.auditor))}</td>
+      <td>${hora(r.startTime)}</td>
+      <td>${ativa ? '<span class="b warn">Em conferência...</span>' : hora(r.endTime)}</td>
+      <td class="dur"><strong style="color:${cor(min)}">${d}</strong></td>
+      <td><span class="b ${isNok ? "nok" : "ok"}">${isNok ? "NOK (>10m)" : "OK"}</span></td>
+      <td>${just ? `<span class="b j">${esc(just)}</span>` : (isNok ? '<span style="color:#94a3b8;font-size:.75rem">Aguardando...</span>' : "-")}</td>
+      <td>${isNok && !just ? `<button class="bj" data-id="${esc(r.targetId)}" data-dur="${d}">Justificar</button>` : (just ? '<span style="color:#34d399;font-weight:700">✓ Salvo</span>' : "-")}</td></tr>`;
+  });
+  $("op-body").innerHTML = html || `<tr><td colspan="10" class="empty">${dbT0.length ? "Nenhuma rota para este filtro." : (ultimaAtualizacao ? "Sem rotas na base Audit T0 no momento." : "Aguardando dados da planilha...")}</td></tr>`;
+  $("k-total").textContent = total; $("k-nok").textContent = nok; $("k-pend").textContent = pend;
+  $("k-ader").textContent = total ? (((total - nok) / total) * 100).toFixed(1) + "%" : "–";
+}
+function tickCronometros() {
+  const agora = new Date(); let recalc = false;
+  document.querySelectorAll("#op-body tr[data-ativa='1']").forEach(tr => {
+    const s = parseData(tr.dataset.start); if (!s) return;
+    const sec = Math.max(0, Math.floor((agora - s) / 1000)), min = sec / 60;
+    const el = tr.querySelector(".dur strong");
+    if (el) { el.textContent = mmss(sec); el.style.color = cor(min); }
+    if ((min > SLA_MIN ? "1" : "0") !== tr.dataset.nok) recalc = true;   // cruzou a meta
+  });
+  if (recalc) renderOperacao();
+  countdown = Math.max(0, countdown - 1);
+  $("timer").textContent = countdown + "s";
+}
+
+// ===== GERENCIAL =====
+function preencherFiltros() {
+  const sd = $("g-data"), sc = $("g-colab"), vd = sd.value || "TODOS", vc = sc.value || "TODOS";
+  const datas = [...new Set(dbHist.map(i => i.data).filter(Boolean))].sort();
+  const colabs = [...new Set(dbHist.map(i => limparNome(i.colaborador)).filter(c => c !== "N/A"))].sort();
+  sd.innerHTML = '<option value="TODOS">Todos os dias</option>' + datas.map(d => `<option value="${esc(d)}">${dataBR(d)}</option>`).join("");
+  sc.innerHTML = '<option value="TODOS">Todos</option>' + colabs.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
+  sd.value = datas.includes(vd) ? vd : "TODOS"; sc.value = colabs.includes(vc) ? vc : "TODOS";
+}
+function upChart(key, id, cfg) {
+  if (!charts[key]) { charts[key] = new Chart($(id), cfg); return; }
+  const c = charts[key];
+  c.data.labels = cfg.data.labels;
+  cfg.data.datasets.forEach((d, i) => { if (c.data.datasets[i]) c.data.datasets[i].data = d.data; });
+  c.update();
+}
+const tick = { color: "#94a3b8" }, grid = { color: "#223259" };
+
+function renderGerencial() {
+  const fd = $("g-data").value, fc = $("g-colab").value, fs = $("g-status").value;
+  const dados = dbHist.filter(i =>
+    (fd === "TODOS" || i.data === fd) && (fc === "TODOS" || limparNome(i.colaborador) === fc) &&
+    (fs === "TODOS" || (fs === "NOK") === isNokHist(i)));
+  const total = dados.length, nok = dados.filter(isNokHist).length, ok = total - nok;
+  const media = total ? dados.reduce((a, c) => a + (c.minutosRota || 0), 0) / total : 0;
+  $("g-total").textContent = total || "–";
+  $("g-ader").textContent = total ? (ok / total * 100).toFixed(1) + "%" : "–";
+  $("g-okq").textContent = `${ok} rotas OK (≤ ${SLA_MIN} min)`;
+  $("g-nok").innerHTML = total ? `${nok} <span style="font-size:1rem;color:#94a3b8">(${(nok / total * 100).toFixed(1)}%)</span>` : "–";
+  $("g-media").textContent = total ? minToMMSS(media) : "–";
+  const dif = Math.round(Math.abs(SLA_MIN - media) * 60), meta = $("g-meta");
+  if (!total) meta.textContent = "Sem dados no filtro";
+  else { meta.textContent = media <= SLA_MIN ? `▼ ${mmss(dif)} abaixo da meta (${SLA_MIN}:00)` : `▲ ${mmss(dif)} acima da meta`; meta.style.color = media <= SLA_MIN ? "#34d399" : "#f87171"; }
+
+  // Evolução diária
+  const dm = {}; dados.forEach(d => { if (d.data) (dm[d.data] ||= []).push(d.minutosRota || 0); });
+  const dias = Object.keys(dm).sort(), meds = dias.map(k => +(dm[k].reduce((a, b) => a + b, 0) / dm[k].length).toFixed(2));
+  upChart("evo", "c-evo", { type: "line", data: { labels: dias.map(dataBR), datasets: [
+    { label: "Tempo médio (min)", data: meds, borderColor: "#ee4d2d", backgroundColor: "rgba(238,77,45,.15)", fill: true, tension: .25, borderWidth: 2.5, pointRadius: 6,
+      datalabels: { align: "top", color: "#fff", font: { weight: "bold", size: 11 }, formatter: v => v.toFixed(2) + "m" } },
+    { label: `Meta (${SLA_MIN}m)`, data: dias.map(() => SLA_MIN), borderColor: "#ef4444", borderDash: [6, 6], borderWidth: 1.5, pointRadius: 0, datalabels: { display: false } }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: tick } },
+      scales: { y: { suggestedMin: 5, suggestedMax: 12, grid, ticks: { ...tick, callback: v => v + "m" } }, x: { grid, ticks: tick } } } });
+
+  // Conformidade
+  totalConf = total;
+  upChart("conf", "c-conf", { type: "doughnut", data: { labels: ["OK (≤10m)", "NOK (>10m)"], datasets: [{ data: [ok, nok], backgroundColor: ["#10b981", "#ee4d2d"], borderWidth: 0, hoverOffset: 8 }] },
+    options: { responsive: true, maintainAspectRatio: false,
+      onClick: (e, els) => { if (els.length) { $("g-status").value = els[0].index === 0 ? "OK" : "NOK"; renderGerencial(); } },
+      plugins: { legend: { position: "bottom", labels: tick },
+        datalabels: { color: "#fff", font: { weight: "bold", size: 13 }, formatter: v => totalConf && v ? (v / totalConf * 100).toFixed(1) + "%" : "" } } } });
+
+  // Motivos
+  const mm = {}; dados.forEach(d => { const m = d.motivo || "Não mapeado"; mm[m] = (mm[m] || 0) + 1; });
+  const mk = Object.keys(mm).sort((a, b) => mm[b] - mm[a]);
+  upChart("mot", "c-mot", { type: "bar", data: { labels: mk, datasets: [{ label: "Qtd", data: mk.map(k => mm[k]), backgroundColor: "#0284c7", borderRadius: 4,
+    datalabels: { anchor: "end", align: "end", color: "#fff", font: { weight: "bold", size: 11 } } }] },
+    options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, layout: { padding: { right: 24 } }, plugins: { legend: { display: false } },
+      scales: { x: { grid, ticks: tick }, y: { grid: { display: false }, ticks: tick } } } });
+
+  // Motoristas
+  const dr = {}; dados.forEach(d => { const m = d.motorista; if (m && m !== "Não Mapeado") (dr[m] ||= []).push(d.minutosRota || 0); });
+  const top = Object.keys(dr).map(k => ({ n: k, m: dr[k].reduce((a, b) => a + b, 0) / dr[k].length })).sort((a, b) => b.m - a.m).slice(0, 10);
+  upChart("drv", "c-drv", { type: "bar", data: { labels: top.map(t => t.n.length > 22 ? t.n.slice(0, 22) + "…" : t.n), datasets: [{ label: "Min", data: top.map(t => +t.m.toFixed(2)), backgroundColor: "#ee4d2d", borderRadius: 4,
+    datalabels: { anchor: "end", align: "start", color: "#fff", font: { weight: "bold", size: 10 }, formatter: v => `${minToMMSS(v)} (${v}m)` } }] },
+    options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+      scales: { x: { suggestedMax: 15, grid, ticks: { ...tick, callback: v => v + "m" } }, y: { grid: { display: false }, ticks: { ...tick, font: { size: 10 } } } } } });
+
+  // Tabela de colaboradores
+  const cm = {};
+  dados.forEach(d => { const c = limparNome(d.colaborador); if (c === "N/A") return; const o = (cm[c] ||= { t: 0, s: 0, ok: 0, nok: 0 }); o.t++; o.s += d.minutosRota || 0; isNokHist(d) ? o.nok++ : o.ok++; });
+  const linhas = Object.keys(cm).map(k => ({ k, ...cm[k], ader: cm[k].ok / cm[k].t * 100, med: cm[k].s / cm[k].t })).sort((a, b) => b.t - a.t);
+  $("colab-body").innerHTML = linhas.length ? linhas.map(c => `<tr><td><strong>${esc(c.k)}</strong></td><td>${c.t}</td><td><b>${minToMMSS(c.med)}</b> (${c.med.toFixed(2)}m)</td>
+    <td style="color:#34d399;font-weight:700">${c.ok}</td><td style="color:#f87171;font-weight:700">${c.nok}</td><td><strong>${c.ader.toFixed(1)}%</strong></td>
+    <td><span class="b ${c.ader >= 70 ? "ok" : "nok"}">${c.ader >= 70 ? "Conforme" : "Atenção"}</span></td></tr>`).join("")
+    : `<tr><td colspan="7" class="empty">Sem dados históricos para exibir.</td></tr>`;
+}
+
+// ===== OCUPAÇÃO (calculada dos horários reais do T0) =====
+function renderOcupacao() {
+  const agora = new Date(), porHora = {};
+  dbT0.forEach(r => { const s = parseData(r.startTime); if (s) { const h = s.getHours(); porHora[h] = (porHora[h] || 0) + 1; } });
+  const horas = Object.keys(porHora).map(Number).sort((a, b) => a - b);
+  const qtd = horas.map(h => porHora[h]), tot = qtd.reduce((a, b) => a + b, 0);
+  let ac = 0; const perc = qtd.map(q => +((ac += q) / tot * 100).toFixed(1));
+  const pico = Math.max(0, ...qtd);
+  $("o-total").textContent = tot || "–";
+  $("o-pico").textContent = tot ? pico + " rotas/h" : "–";
+  $("o-pico-h").textContent = tot ? `Faixa das ${String(horas[qtd.indexOf(pico)]).padStart(2, "0")}h` : "Sem dados";
+  const ativas = dbT0.filter(r => !r.endTime).length;
+  $("o-agora").textContent = `${ativas} / ${CAPACIDADE}`;
+  upChart("ops", "c-ops", { data: { labels: horas.map(h => String(h).padStart(2, "0") + "h"), datasets: [
+    { type: "bar", label: "Quantidade de rotas", data: qtd, backgroundColor: "#2563eb", borderRadius: 4, yAxisID: "yB", datalabels: { anchor: "end", align: "top", color: "#fff", font: { weight: "bold" } } },
+    { type: "line", label: "% acumulado", data: perc, borderColor: "#dc2626", backgroundColor: "#dc2626", borderWidth: 2.5, pointRadius: 5, yAxisID: "yL",
+      datalabels: { align: "top", color: "#f87171", formatter: v => v.toFixed(1) + "%", font: { weight: "bold" } } }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: tick } },
+      scales: { yB: { position: "left", suggestedMax: pico + 8, grid, ticks: tick }, yL: { position: "right", min: 0, max: 110, grid: { display: false }, ticks: { color: "#f87171", callback: v => v <= 100 ? v + "%" : "" } }, x: { grid, ticks: tick } } } });
+}
+
+function renderTudo() { renderOperacao(); if (tabAtual === "gerencial") renderGerencial(); if (tabAtual === "ociosidade") renderOcupacao(); }
+
+// ===== EVENTOS =====
+document.querySelectorAll(".tab").forEach(b => b.addEventListener("click", () => {
+  tabAtual = b.dataset.tab;
+  document.querySelectorAll(".tab").forEach(x => x.classList.toggle("active", x === b));
+  ["operacao", "gerencial", "ociosidade"].forEach(t => $("view-" + t).style.display = t === tabAtual ? "block" : "none");
+  renderTudo();
+}));
+$("op-body").addEventListener("click", e => { const b = e.target.closest("button[data-id]"); if (b) abrirModal(b.dataset.id, b.dataset.dur); });
+$("op-search").addEventListener("input", renderOperacao);
+$("op-filter").addEventListener("change", renderOperacao);
+["g-data", "g-colab", "g-status"].forEach(id => $(id).addEventListener("change", renderGerencial));
+$("g-reset").addEventListener("click", () => { $("g-data").value = "TODOS"; $("g-colab").value = "TODOS"; $("g-status").value = "TODOS"; renderGerencial(); });
+$("btn-refresh").addEventListener("click", carregarDados);
+$("m-cancel").addEventListener("click", fecharModal);
+$("m-save").addEventListener("click", salvarJustificativa);
+$("m-motivo").addEventListener("change", e => { $("m-outro").style.display = e.target.value === "__outro" ? "block" : "none"; });
+document.addEventListener("visibilitychange", () => { if (!document.hidden) carregarDados(); else clearTimeout(pollTimer); });
+
+setInterval(tickCronometros, 1000);
+carregarDados();
+</script>
 </body>
 </html>
