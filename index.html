@@ -7,9 +7,9 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
 <style>
-:root{--or:#ee4d2d;--bg:#0b1329;--card:#151f38;--bd:#223259;--mut:#94a3b8;--ok:#10b981;--nok:#ef4444;--warn:#f59e0b}
+:root{--or:#ee4d2d;--bg:#070b14;--card:#0f1523;--bd:#1c2640;--mut:#94a3b8;--ok:#10b981;--nok:#ef4444;--warn:#f59e0b}
 *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
-body{background:var(--bg);color:#f8fafc;padding:16px;min-height:100vh}
+body{background:radial-gradient(1100px 480px at 50% -8%,#0d152b,var(--bg) 70%) fixed,var(--bg);color:#f8fafc;padding:16px;min-height:100vh}
 header{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:center;background:var(--card);padding:14px 20px;border-radius:12px;border:1px solid var(--bd);margin-bottom:16px}
 .brand{display:flex;align-items:center;gap:12px}
 .badge-spx{background:var(--or);font-weight:900;padding:6px 14px;border-radius:8px}
@@ -20,7 +20,7 @@ h1{font-size:1.15rem}.brand p{font-size:.78rem;color:var(--mut)}
 .sync{display:flex;align-items:center;gap:8px;font-size:.8rem;background:var(--bg);border:1px solid var(--bd);padding:6px 12px;border-radius:6px}
 .dot{width:9px;height:9px;border-radius:50%;background:var(--warn)}
 .dot.on{background:var(--ok)}.dot.off{background:var(--nok)}
-.btn{background:#1e2d4d;color:#fff;border:1px solid var(--bd);padding:8px 14px;border-radius:6px;font-size:.82rem;cursor:pointer;font-weight:600}
+.btn{background:#172038;color:#fff;border:1px solid var(--bd);padding:8px 14px;border-radius:6px;font-size:.82rem;cursor:pointer;font-weight:600}
 .btn:hover{background:var(--or)}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:16px}
 .kpi{background:var(--card);border:1px solid var(--bd);border-left:4px solid var(--or);border-radius:10px;padding:16px}
@@ -40,8 +40,8 @@ select,input{background:var(--bg);border:1px solid var(--bd);color:#fff;padding:
 .tw{overflow-x:auto;max-height:520px}
 table{width:100%;border-collapse:collapse;font-size:.84rem}
 th{background:var(--bg);color:var(--mut);padding:10px 12px;text-align:left;position:sticky;top:0;white-space:nowrap}
-td{padding:9px 12px;border-bottom:1px solid #1a2747;white-space:nowrap}
-tr:hover{background:#1c2a4d}
+td{padding:9px 12px;border-bottom:1px solid #141c31;white-space:nowrap}
+tr:hover{background:#151d33}
 .b{padding:3px 8px;border-radius:4px;font-size:.74rem;font-weight:700}
 .b.ok{background:rgba(16,185,129,.15);color:#34d399}.b.nok{background:rgba(239,68,68,.2);color:#f87171}
 .b.warn{background:rgba(245,158,11,.2);color:#fbbf24}.b.j{background:rgba(59,130,246,.2);color:#60a5fa}
@@ -58,8 +58,8 @@ footer strong{color:var(--or)}
 .kpi,.panel,.bar{animation:rise .55s ease both}
 .kpi:nth-child(2){animation-delay:.08s}.kpi:nth-child(3){animation-delay:.16s}.kpi:nth-child(4){animation-delay:.24s}
 .kpi,.grid2 .panel{transition:transform .2s,box-shadow .2s,border-color .2s}
-.kpi:hover,.grid2 .panel:hover{transform:translateY(-3px);box-shadow:0 12px 28px rgba(0,0,0,.4);border-color:#3a4f94}
-header{background:linear-gradient(135deg,#151f38,#1b2c57)}
+.kpi:hover,.grid2 .panel:hover{transform:translateY(-3px);box-shadow:0 12px 28px rgba(0,0,0,.4);border-color:#2c3d70}
+header{background:linear-gradient(135deg,#0f1523,#131c33)}
 .badge-spx{box-shadow:0 0 16px rgba(238,77,45,.55)}
 .kpi .v{font-variant-numeric:tabular-nums;letter-spacing:-.5px}
 .tab{transition:all .2s}.tab:hover{color:#fff}
@@ -69,7 +69,7 @@ tbody tr:nth-child(even){background:rgba(255,255,255,.02)}
 @keyframes pulse{50%{opacity:.4}}
 .panel h3{display:flex;align-items:center;gap:8px}
 .panel h3::before{content:"";width:4px;height:16px;background:var(--or);border-radius:2px}
-::-webkit-scrollbar{height:8px;width:8px}::-webkit-scrollbar-thumb{background:#2b3d6d;border-radius:4px}
+::-webkit-scrollbar{height:8px;width:8px}::-webkit-scrollbar-thumb{background:#232f52;border-radius:4px}
 </style>
 </head>
 <body>
@@ -137,12 +137,12 @@ tbody tr:nth-child(even){background:rgba(255,255,255,.02)}
     <div class="kpi"><h4>Volume auditado</h4><div class="v" id="g-total">–</div><div class="s">Rotas no filtro atual</div></div>
   </div>
   <div class="grid2 main">
-    <div class="panel"><h3>Tempo médio diário</h3><div class="sub">Fixo (todos os dias). Dia filtrado fica em destaque • 🟢 dentro da meta • 🔴 acima de 10 min.</div><div class="ch"><canvas id="c-evo"></canvas></div></div>
+    <div class="panel"><h3>Tempo médio diário</h3><div class="sub">Sempre mostra todos os dias (o filtro de dia só destaca o ponto). Responde a Condição (OK/NOK) e Colaborador. 🟢 dentro da meta • 🔴 acima de 10 min.</div><div class="ch"><canvas id="c-evo"></canvas></div></div>
     <div class="panel"><h3>Conformidade</h3><div class="sub">Clique numa fatia para filtrar.</div><div class="ch"><canvas id="c-conf"></canvas></div></div>
   </div>
   <div class="grid2">
-    <div class="panel"><h3>Ofensores (motivos)</h3><div class="sub">Quantidade por motivo.</div><div class="ch"><canvas id="c-mot"></canvas></div></div>
-    <div class="panel"><h3>Motoristas com maior tempo médio</h3><div class="sub">Top 10.</div><div class="ch"><canvas id="c-drv"></canvas></div></div>
+    <div class="panel"><h3>Ofensores (motivos)</h3><div class="sub" id="sub-mot">Quantidade por motivo.</div><div class="ch"><canvas id="c-mot"></canvas></div></div>
+    <div class="panel"><h3>Motoristas com maior tempo médio</h3><div class="sub">Top 10 • 🟢 até 7 min • 🟠 7 a 10 min • 🔴 acima de 10 min.</div><div class="ch" style="height:430px"><canvas id="c-drv"></canvas></div></div>
   </div>
   <div class="panel" style="margin-top:16px">
     <h3>Desempenho por colaborador</h3><div class="sub">Rotas, tempo médio e aderência individual (Conforme ≥ 70%).</div>
@@ -189,8 +189,8 @@ tbody tr:nth-child(even){background:rgba(255,255,255,.02)}
 Chart.register(ChartDataLabels);
 Chart.defaults.animation.duration = 1100;
 Chart.defaults.animation.easing = "easeOutQuart";
-Chart.defaults.plugins.tooltip.backgroundColor = "#0b1329";
-Chart.defaults.plugins.tooltip.borderColor = "#3a4f94";
+Chart.defaults.plugins.tooltip.backgroundColor = "#070b14";
+Chart.defaults.plugins.tooltip.borderColor = "#2c3d70";
 Chart.defaults.plugins.tooltip.borderWidth = 1;
 Chart.defaults.plugins.tooltip.padding = 10;
 const PAL = ["#ee4d2d", "#f59e0b", "#0ea5e9", "#8b5cf6", "#10b981", "#ec4899", "#14b8a6", "#64748b"];
@@ -387,7 +387,7 @@ function upChart(key, id, cfg) {
     al.textContent = `⚠ Erro ao desenhar o gráfico "${key}": ${e.message}`;
   }
 }
-const tick = { color: "#94a3b8" }, grid = { color: "#223259" };
+const tick = { color: "#94a3b8" }, grid = { color: "#1c2640" };
 
 function renderGerencial() {
   const fd = $("g-data").value, fc = $("g-colab").value, fs = $("g-status").value;
@@ -406,11 +406,11 @@ function renderGerencial() {
   else { meta.textContent = media <= SLA_MIN ? `▼ ${mmss(dif)} abaixo da meta (${SLA_MIN}:00)` : `▲ ${mmss(dif)} acima da meta`; meta.style.color = media <= SLA_MIN ? "#34d399" : "#f87171"; }
 
   // Evolução diária: FIXA. Ignora filtro de dia e de condição (respeita só colaborador); o dia escolhido fica destacado.
-  const baseEvo = dbHist.filter(i => fc === "TODOS" || limparNome(i.colaborador) === fc);
+  const baseEvo = dbHist.filter(i => (fc === "TODOS" || limparNome(i.colaborador) === fc) && (fs === "TODOS" || (fs === "NOK") === isNokHist(i)));
   const dm = {}; baseEvo.forEach(d => { if (d.data) (dm[d.data] ||= []).push(d.minutosRota || 0); });
   const dias = Object.keys(dm).sort(), meds = dias.map(k => +(dm[k].reduce((a, b) => a + b, 0) / dm[k].length).toFixed(2));
   upChart("evo", "c-evo", { type: "line", data: { labels: dias.map(dataBR), datasets: [
-    { label: "Tempo médio (min)", data: meds, borderColor: "#ee4d2d", backgroundColor: gradEvo, fill: true, tension: .35, borderWidth: 3,
+    { label: fs === "NOK" ? "Tempo médio das rotas NOK (min)" : fs === "OK" ? "Tempo médio das rotas OK (min)" : "Tempo médio (min)", data: meds, borderColor: "#ee4d2d", backgroundColor: gradEvo, fill: true, tension: .35, borderWidth: 3,
       pointRadius: dias.map(d => d === fd ? 11 : 6), pointHoverRadius: 11, pointBorderColor: "#fff", pointBorderWidth: 2,
       pointBackgroundColor: meds.map(m => m > SLA_MIN ? "#ef4444" : "#10b981"),
       datalabels: { align: "top", color: "#fff", font: { weight: "bold", size: 11 }, formatter: v => v.toFixed(2) + "m" } },
@@ -427,20 +427,34 @@ function renderGerencial() {
         datalabels: { color: "#fff", font: { weight: "bold", size: 13 }, formatter: v => totalConf && v ? (v / totalConf * 100).toFixed(1) + "%" : "" } } } });
 
   // Motivos
-  const mm = {}; dados.forEach(d => { const m = d.motivo || "Não mapeado"; mm[m] = (mm[m] || 0) + 1; });
+  const mm = {}, nomes = {}; let semMotivo = 0;
+  dados.forEach(d => {
+    let m = String(d.motivo || "").trim();
+    while (m.endsWith(")") && (m.match(/\)/g) || []).length > (m.match(/\(/g) || []).length) m = m.slice(0, -1).trim();
+    const k = m.toLowerCase();
+    if (!k || k === "não mapeado" || k === "nao mapeado") { semMotivo++; return; }
+    nomes[k] ||= m; mm[nomes[k]] = (mm[nomes[k]] || 0) + 1;
+  });
   const mk = Object.keys(mm).sort((a, b) => mm[b] - mm[a]);
+  $("sub-mot").textContent = `Quantidade por motivo • ${semMotivo} rotas sem motivo mapeado ficam fora do gráfico.`;
   upChart("mot", "c-mot", { type: "bar", data: { labels: mk, datasets: [{ label: "Qtd", data: mk.map(k => mm[k]), backgroundColor: mk.map((_, i) => PAL[i % PAL.length]), borderRadius: 6,
     datalabels: { anchor: "end", align: "end", color: "#fff", font: { weight: "bold", size: 11 } } }] },
     options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, layout: { padding: { right: 24 } }, plugins: { legend: { display: false } },
       scales: { x: { grid, ticks: tick }, y: { grid: { display: false }, ticks: tick } } } });
 
-  // Motoristas
-  const dr = {}; dados.forEach(d => { const m = d.motorista; if (m && m !== "Não Mapeado") (dr[m] ||= []).push(d.minutosRota || 0); });
-  const top = Object.keys(dr).map(k => ({ n: k, m: dr[k].reduce((a, b) => a + b, 0) / dr[k].length })).sort((a, b) => b.m - a.m).slice(0, 10);
-  upChart("drv", "c-drv", { type: "bar", data: { labels: top.map(t => t.n.length > 22 ? t.n.slice(0, 22) + "…" : t.n), datasets: [{ label: "Min", data: top.map(t => +t.m.toFixed(2)), backgroundColor: top.map(t => cor(t.m)), borderRadius: 6,
-    datalabels: { anchor: "end", align: "start", color: "#fff", font: { weight: "bold", size: 10 }, formatter: v => `${minToMMSS(v)} (${v}m)` } }] },
-    options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
-      scales: { x: { suggestedMax: 15, grid, ticks: { ...tick, callback: v => v + "m" } }, y: { grid: { display: false }, ticks: { ...tick, font: { size: 10 } } } } } });
+  // Motoristas: nomes completos em 2 linhas, rótulo fora da barra, cores com contraste
+  const dr = {}; dados.forEach(d => { const m = d.motorista; if (m && String(m).toLowerCase() !== "não mapeado") (dr[m] ||= []).push(d.minutosRota || 0); });
+  const top = Object.keys(dr).map(k => ({ n: k, m: dr[k].reduce((a, b) => a + b, 0) / dr[k].length, q: dr[k].length })).sort((a, b) => b.m - a.m).slice(0, 10);
+  const quebra = n => { const p = String(n).split(" "); if (n.length <= 20) return n;
+    let a = "", i = 0; while (i < p.length && (a + " " + p[i]).trim().length <= Math.ceil(n.length / 2) + 2) a = (a + " " + p[i++]).trim();
+    const b = p.slice(i).join(" "); return b ? [a, b.length > 24 ? b.slice(0, 23) + "…" : b] : a; };
+  const corDrv = m => m > SLA_MIN ? "#ef4444" : m > WARN_MIN ? "#f97316" : "#22c55e";
+  upChart("drv", "c-drv", { type: "bar", data: { labels: top.map(t => quebra(t.n)), datasets: [{ label: "Minutos", data: top.map(t => +t.m.toFixed(2)), backgroundColor: top.map(t => corDrv(t.m)), borderRadius: 6, barThickness: 22,
+    datalabels: { anchor: "end", align: "end", color: "#f1f5f9", font: { weight: "bold", size: 11 }, formatter: v => `${minToMMSS(v)}  (${v}m)` } }] },
+    options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, layout: { padding: { right: 100 } },
+      plugins: { legend: { display: false }, tooltip: { callbacks: { title: c => top[c[0].dataIndex].n, label: c => ` ${minToMMSS(c.parsed.x)} min • ${top[c.dataIndex].q} rotas` } } },
+      scales: { x: { suggestedMax: Math.max(12, ...top.map(t => t.m)) + 1, grid, ticks: { ...tick, callback: v => v + "m" } },
+                y: { grid: { display: false }, ticks: { color: "#cbd5e1", font: { size: 11, weight: "600" }, autoSkip: false } } } } });
 
   // Tabela de colaboradores
   const cm = {};
