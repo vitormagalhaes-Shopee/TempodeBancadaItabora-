@@ -54,6 +54,22 @@ tr:hover{background:#1c2a4d}
 .mact{display:flex;justify-content:flex-end;gap:10px}
 footer{text-align:center;padding:16px 0;margin-top:20px;border-top:1px solid var(--bd);font-size:.8rem;color:var(--mut)}
 footer strong{color:var(--or)}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.kpi,.panel,.bar{animation:rise .55s ease both}
+.kpi:nth-child(2){animation-delay:.08s}.kpi:nth-child(3){animation-delay:.16s}.kpi:nth-child(4){animation-delay:.24s}
+.kpi,.grid2 .panel{transition:transform .2s,box-shadow .2s,border-color .2s}
+.kpi:hover,.grid2 .panel:hover{transform:translateY(-3px);box-shadow:0 12px 28px rgba(0,0,0,.4);border-color:#3a4f94}
+header{background:linear-gradient(135deg,#151f38,#1b2c57)}
+.badge-spx{box-shadow:0 0 16px rgba(238,77,45,.55)}
+.kpi .v{font-variant-numeric:tabular-nums;letter-spacing:-.5px}
+.tab{transition:all .2s}.tab:hover{color:#fff}
+.tab.active{box-shadow:0 2px 12px rgba(238,77,45,.45)}
+tbody tr:nth-child(even){background:rgba(255,255,255,.02)}
+.dot.on{box-shadow:0 0 8px var(--ok);animation:pulse 2s infinite}
+@keyframes pulse{50%{opacity:.4}}
+.panel h3{display:flex;align-items:center;gap:8px}
+.panel h3::before{content:"";width:4px;height:16px;background:var(--or);border-radius:2px}
+::-webkit-scrollbar{height:8px;width:8px}::-webkit-scrollbar-thumb{background:#2b3d6d;border-radius:4px}
 </style>
 </head>
 <body>
@@ -121,7 +137,7 @@ footer strong{color:var(--or)}
     <div class="kpi"><h4>Volume auditado</h4><div class="v" id="g-total">–</div><div class="s">Rotas no filtro atual</div></div>
   </div>
   <div class="grid2 main">
-    <div class="panel"><h3>Tempo médio diário</h3><div class="sub">Linha de meta em 10 min.</div><div class="ch"><canvas id="c-evo"></canvas></div></div>
+    <div class="panel"><h3>Tempo médio diário</h3><div class="sub">Fixo (todos os dias). Dia filtrado fica em destaque • 🟢 dentro da meta • 🔴 acima de 10 min.</div><div class="ch"><canvas id="c-evo"></canvas></div></div>
     <div class="panel"><h3>Conformidade</h3><div class="sub">Clique numa fatia para filtrar.</div><div class="ch"><canvas id="c-conf"></canvas></div></div>
   </div>
   <div class="grid2">
@@ -166,11 +182,40 @@ footer strong{color:var(--or)}
 
 <footer>
   <p>Projeto de Gestão Operacional • Shopee Express • <strong>Hub RJ (Itaboraí)</strong></p>
-  <p>Criado por <strong>Vitor Elias</strong> com auxílio do <strong>Gemini</strong></p>
+  <p>Feito por <strong>Vitor Elias</strong> com ajuda do <strong>Gemini</strong> e do <strong>Claude</strong> 🚀</p>
 </footer>
 
 <script>
 Chart.register(ChartDataLabels);
+Chart.defaults.animation = { duration: 1100, easing: "easeOutQuart",
+  delay: ctx => ctx.type === "data" && ctx.mode === "default" ? Math.min(ctx.dataIndex, 12) * 70 : 0 };
+Chart.defaults.plugins.tooltip.backgroundColor = "#0b1329";
+Chart.defaults.plugins.tooltip.borderColor = "#3a4f94";
+Chart.defaults.plugins.tooltip.borderWidth = 1;
+Chart.defaults.plugins.tooltip.padding = 10;
+const PAL = ["#ee4d2d", "#f59e0b", "#0ea5e9", "#8b5cf6", "#10b981", "#ec4899", "#14b8a6", "#64748b"];
+let okConf = 0;
+const gradEvo = ctx => { const a = ctx.chart.chartArea; if (!a) return "rgba(238,77,45,.2)";
+  const g = ctx.chart.ctx.createLinearGradient(0, a.top, 0, a.bottom);
+  g.addColorStop(0, "rgba(238,77,45,.45)"); g.addColorStop(1, "rgba(238,77,45,0)"); return g; };
+// Texto no centro da rosca (% de aderência)
+Chart.register({ id: "centro", afterDraw(c) {
+  if (c.config.type !== "doughnut") return;
+  const a = c.chartArea, x = (a.left + a.right) / 2, y = (a.top + a.bottom) / 2, t = c.ctx;
+  t.save(); t.textAlign = "center";
+  t.fillStyle = "#fff"; t.font = "800 28px sans-serif"; t.fillText(totalConf ? (okConf / totalConf * 100).toFixed(0) + "%" : "–", x, y + 6);
+  t.fillStyle = "#94a3b8"; t.font = "12px sans-serif"; t.fillText("aderência", x, y + 26); t.restore(); } });
+// Contador animado dos KPIs (só anima quando o valor muda)
+function cnt(id, to, dec = 0, suf = "") {
+  const el = $(id);
+  if (typeof to !== "number" || isNaN(to)) { el.textContent = "–"; el.dataset.v = ""; return; }
+  const from = parseFloat(el.dataset.v); if (from === to) return;
+  const ini = isNaN(from) ? 0 : from, t0 = performance.now(); el.dataset.v = to;
+  cancelAnimationFrame(el._raf);
+  const step = now => { const p = Math.min(1, (now - t0) / 800), e = 1 - Math.pow(1 - p, 3);
+    el.textContent = (ini + (to - ini) * e).toFixed(dec) + suf; if (p < 1) el._raf = requestAnimationFrame(step); };
+  el._raf = requestAnimationFrame(step);
+}
 
 // ===== CONFIG =====
 const API_URL = "https://script.google.com/macros/s/AKfycbyc3CnTifD0wzB0ByYSUVuemQpYzHwpqi04D40mh1KuSdU70cfZ8vuoY1PmEYvBEk1G/exec";
@@ -302,8 +347,8 @@ function renderOperacao() {
       <td>${isNok && !just ? `<button class="bj" data-id="${esc(r.targetId)}" data-dur="${d}">Justificar</button>` : (just ? '<span style="color:#34d399;font-weight:700">✓ Salvo</span>' : "-")}</td></tr>`;
   });
   $("op-body").innerHTML = html || `<tr><td colspan="10" class="empty">${dbT0.length ? "Nenhuma rota para este filtro." : (ultimaAtualizacao ? "Sem rotas na base Audit T0 no momento." : "Aguardando dados da planilha...")}</td></tr>`;
-  $("k-total").textContent = total; $("k-nok").textContent = nok; $("k-pend").textContent = pend;
-  $("k-ader").textContent = total ? (((total - nok) / total) * 100).toFixed(1) + "%" : "–";
+  cnt("k-total", total); cnt("k-nok", nok); cnt("k-pend", pend);
+  cnt("k-ader", total ? +(((total - nok) / total) * 100).toFixed(1) : NaN, 1, "%");
 }
 function tickCronometros() {
   const agora = new Date(); let recalc = false;
@@ -332,7 +377,7 @@ function upChart(key, id, cfg) {
   if (!charts[key]) { charts[key] = new Chart($(id), cfg); return; }
   const c = charts[key];
   c.data.labels = cfg.data.labels;
-  cfg.data.datasets.forEach((d, i) => { if (c.data.datasets[i]) c.data.datasets[i].data = d.data; });
+  cfg.data.datasets.forEach((d, i) => { if (c.data.datasets[i]) Object.assign(c.data.datasets[i], d); });
   c.update();
 }
 const tick = { color: "#94a3b8" }, grid = { color: "#223259" };
@@ -344,8 +389,8 @@ function renderGerencial() {
     (fs === "TODOS" || (fs === "NOK") === isNokHist(i)));
   const total = dados.length, nok = dados.filter(isNokHist).length, ok = total - nok;
   const media = total ? dados.reduce((a, c) => a + (c.minutosRota || 0), 0) / total : 0;
-  $("g-total").textContent = total || "–";
-  $("g-ader").textContent = total ? (ok / total * 100).toFixed(1) + "%" : "–";
+  cnt("g-total", total || NaN);
+  cnt("g-ader", total ? +(ok / total * 100).toFixed(1) : NaN, 1, "%");
   $("g-okq").textContent = `${ok} rotas OK (≤ ${SLA_MIN} min)`;
   $("g-nok").innerHTML = total ? `${nok} <span style="font-size:1rem;color:#94a3b8">(${(nok / total * 100).toFixed(1)}%)</span>` : "–";
   $("g-media").textContent = total ? minToMMSS(media) : "–";
@@ -353,20 +398,23 @@ function renderGerencial() {
   if (!total) meta.textContent = "Sem dados no filtro";
   else { meta.textContent = media <= SLA_MIN ? `▼ ${mmss(dif)} abaixo da meta (${SLA_MIN}:00)` : `▲ ${mmss(dif)} acima da meta`; meta.style.color = media <= SLA_MIN ? "#34d399" : "#f87171"; }
 
-  // Evolução diária
-  const dm = {}; dados.forEach(d => { if (d.data) (dm[d.data] ||= []).push(d.minutosRota || 0); });
+  // Evolução diária: FIXA. Ignora filtro de dia e de condição (respeita só colaborador); o dia escolhido fica destacado.
+  const baseEvo = dbHist.filter(i => fc === "TODOS" || limparNome(i.colaborador) === fc);
+  const dm = {}; baseEvo.forEach(d => { if (d.data) (dm[d.data] ||= []).push(d.minutosRota || 0); });
   const dias = Object.keys(dm).sort(), meds = dias.map(k => +(dm[k].reduce((a, b) => a + b, 0) / dm[k].length).toFixed(2));
   upChart("evo", "c-evo", { type: "line", data: { labels: dias.map(dataBR), datasets: [
-    { label: "Tempo médio (min)", data: meds, borderColor: "#ee4d2d", backgroundColor: "rgba(238,77,45,.15)", fill: true, tension: .25, borderWidth: 2.5, pointRadius: 6,
+    { label: "Tempo médio (min)", data: meds, borderColor: "#ee4d2d", backgroundColor: gradEvo, fill: true, tension: .35, borderWidth: 3,
+      pointRadius: dias.map(d => d === fd ? 11 : 6), pointHoverRadius: 11, pointBorderColor: "#fff", pointBorderWidth: 2,
+      pointBackgroundColor: meds.map(m => m > SLA_MIN ? "#ef4444" : "#10b981"),
       datalabels: { align: "top", color: "#fff", font: { weight: "bold", size: 11 }, formatter: v => v.toFixed(2) + "m" } },
     { label: `Meta (${SLA_MIN}m)`, data: dias.map(() => SLA_MIN), borderColor: "#ef4444", borderDash: [6, 6], borderWidth: 1.5, pointRadius: 0, datalabels: { display: false } }] },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: tick } },
       scales: { y: { suggestedMin: 5, suggestedMax: 12, grid, ticks: { ...tick, callback: v => v + "m" } }, x: { grid, ticks: tick } } } });
 
   // Conformidade
-  totalConf = total;
+  totalConf = total; okConf = ok;
   upChart("conf", "c-conf", { type: "doughnut", data: { labels: ["OK (≤10m)", "NOK (>10m)"], datasets: [{ data: [ok, nok], backgroundColor: ["#10b981", "#ee4d2d"], borderWidth: 0, hoverOffset: 8 }] },
-    options: { responsive: true, maintainAspectRatio: false,
+    options: { responsive: true, maintainAspectRatio: false, cutout: "66%",
       onClick: (e, els) => { if (els.length) { $("g-status").value = els[0].index === 0 ? "OK" : "NOK"; renderGerencial(); } },
       plugins: { legend: { position: "bottom", labels: tick },
         datalabels: { color: "#fff", font: { weight: "bold", size: 13 }, formatter: v => totalConf && v ? (v / totalConf * 100).toFixed(1) + "%" : "" } } } });
@@ -374,7 +422,7 @@ function renderGerencial() {
   // Motivos
   const mm = {}; dados.forEach(d => { const m = d.motivo || "Não mapeado"; mm[m] = (mm[m] || 0) + 1; });
   const mk = Object.keys(mm).sort((a, b) => mm[b] - mm[a]);
-  upChart("mot", "c-mot", { type: "bar", data: { labels: mk, datasets: [{ label: "Qtd", data: mk.map(k => mm[k]), backgroundColor: "#0284c7", borderRadius: 4,
+  upChart("mot", "c-mot", { type: "bar", data: { labels: mk, datasets: [{ label: "Qtd", data: mk.map(k => mm[k]), backgroundColor: mk.map((_, i) => PAL[i % PAL.length]), borderRadius: 6,
     datalabels: { anchor: "end", align: "end", color: "#fff", font: { weight: "bold", size: 11 } } }] },
     options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, layout: { padding: { right: 24 } }, plugins: { legend: { display: false } },
       scales: { x: { grid, ticks: tick }, y: { grid: { display: false }, ticks: tick } } } });
@@ -382,7 +430,7 @@ function renderGerencial() {
   // Motoristas
   const dr = {}; dados.forEach(d => { const m = d.motorista; if (m && m !== "Não Mapeado") (dr[m] ||= []).push(d.minutosRota || 0); });
   const top = Object.keys(dr).map(k => ({ n: k, m: dr[k].reduce((a, b) => a + b, 0) / dr[k].length })).sort((a, b) => b.m - a.m).slice(0, 10);
-  upChart("drv", "c-drv", { type: "bar", data: { labels: top.map(t => t.n.length > 22 ? t.n.slice(0, 22) + "…" : t.n), datasets: [{ label: "Min", data: top.map(t => +t.m.toFixed(2)), backgroundColor: "#ee4d2d", borderRadius: 4,
+  upChart("drv", "c-drv", { type: "bar", data: { labels: top.map(t => t.n.length > 22 ? t.n.slice(0, 22) + "…" : t.n), datasets: [{ label: "Min", data: top.map(t => +t.m.toFixed(2)), backgroundColor: top.map(t => cor(t.m)), borderRadius: 6,
     datalabels: { anchor: "end", align: "start", color: "#fff", font: { weight: "bold", size: 10 }, formatter: v => `${minToMMSS(v)} (${v}m)` } }] },
     options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
       scales: { x: { suggestedMax: 15, grid, ticks: { ...tick, callback: v => v + "m" } }, y: { grid: { display: false }, ticks: { ...tick, font: { size: 10 } } } } } });
