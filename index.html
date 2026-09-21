@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shopee Express | Monitor & Gestão de Bancada SLA</title>
+  <!-- Chart.js para visualizações interativas -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --spx-orange: #ee4d2d;
+      --spx-orange-hover: #d03e1b;
+      --bg-dark: #0f172a;
+      --card-dark: #1e293b;
+      --card-border: #334155;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --status-ok: #10b981;
+      --status-nok: #ef4444;
+      --status-warn: #f59e0b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      padding: 16px 24px;
+      min-height: 100vh;
+    }
+
+    /* Top Navigation Header */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--card-dark);
+      padding: 16px 24px;
+      border-radius: 12px;
+      border: 1px solid var(--card-border);
+      margin-bottom: 20px;
+    }
+
+    .brand-area {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .spx-badge {
+      background-color: var(--spx-orange);
+      color: #fff;
+      font-weight: 800;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 1rem;
+      letter-spacing: 0.5px;
+    }
+
+    .brand-info h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .brand-info p {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .nav-tabs {
+      display: flex;
+      gap: 8px;
+      background: #0f172a;
+      padding: 4px;
+      border-radius: 8px;
+      border: 1px solid var(--card-border);
+    }
+
+    .nav-tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 8px 18px;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.88rem;
+      transition: all 0.2s ease;
+    }
+
+    .nav-tab-btn.active {
+      background: var(--spx-orange);
+      color: #fff;
+    }
+
+    .actions-top {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .sync-status {
+      font-size: 0.8rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--status-ok);
+      box-shadow: 0 0 8px var(--status-ok);
+    }
+
+    .btn-sync {
+      background: #334155;
+      color: #fff;
+      border: none;
+      padding: 7px 14px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+
+    .btn-sync:hover {
+      background: #475569;
+    }
+
+    /* KPI Cards */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .kpi-card {
+      background: var(--card-dark);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 16px 20px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .kpi-card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+      background: var(--spx-orange);
+    }
+
+    .kpi-card.kpi-nok::before { background: var(--status-nok); }
+    .kpi-card.kpi-ok::before { background: var(--status-ok); }
+
+    .kpi-card h4 {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+
+    .kpi-card .val {
+      font-size: 1.7rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .kpi-card .sub {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* Filtros e Controles */
+    .filter-bar {
+      background: var(--card-dark);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 14px 20px;
+      margin-bottom: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .filter-group {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    select, input[type="text"] {
+      background: #0f172a;
+      border: 1px solid var(--card-border);
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      outline: none;
+    }
+
+    select:focus, input[type="text"]:focus {
+      border-color: var(--spx-orange);
+    }
+
+    /* Grid de Gráficos */
+    .charts-grid-main {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 18px;
+      margin-bottom: 20px;
+    }
+
+    .charts-grid-sub {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      margin-bottom: 20px;
+    }
+
+    @media (max-width: 950px) {
+      .charts-grid-main, .charts-grid-sub {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel-card {
+      background: var(--card-dark);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 20px;
+    }
+
+    .panel-card h3 {
+      font-size: 0.98rem;
+      color: #f1f5f9;
+      margin-bottom: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Tabelas */
+    .table-container {
+      overflow-x: auto;
+      max-height: 520px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.84rem;
+      text-align: left;
+    }
+
+    th {
+      background: #0f172a;
+      color: var(--text-muted);
+      padding: 10px 12px;
+      font-weight: 600;
+      position: sticky;
+      top: 0;
+      border-bottom: 1px solid var(--card-border);
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #243248;
+      white-space: nowrap;
+    }
+
+    tr:hover {
+      background: #243248;
+    }
+
+    /* Tags e Status */
+    .tag {
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      display: inline-block;
+    }
+
+    .tag-ok { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+    .tag-nok { background: rgba(239, 68, 68, 0.2); color: #f87171; animation: pulse 2s infinite; }
+    .tag-justificado { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+
+    @keyframes pulse {
+      0% { opacity: 0.9; }
+      50% { opacity: 0.5; }
+      100% { opacity: 0.9; }
+    }
+
+    /* Botão de Justificar */
+    .btn-justificar {
+      background: var(--spx-orange);
+      color: #fff;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .btn-justificar:hover {
+      background: var(--spx-orange-hover);
+    }
+
+    /* Modal de Justificativa */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.75);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal-box {
+      background: var(--card-dark);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      width: 90%;
+      max-width: 460px;
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    .modal-box h3 {
+      font-size: 1.1rem;
+      margin-bottom: 12px;
+      color: #fff;
+    }
+
+    .modal-box p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+
+    .modal-box select {
+      width: 100%;
+      margin-bottom: 20px;
+      padding: 10px;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    .btn-cancel {
+      background: #334155;
+      color: #fff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .btn-save {
+      background: var(--spx-orange);
+      color: #fff;
+      border: none;
+      padding: 8px 18px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    /* Footer */
+    footer {
+      text-align: center;
+      padding: 18px 0;
+      margin-top: 24px;
+      border-top: 1px solid var(--card-border);
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    footer strong {
+      color: var(--spx-orange);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Bar -->
+  <header>
+    <div class="brand-area">
+      <div class="spx-badge">SPX</div>
+      <div class="brand-info">
+        <h1>Shopee Express • Hub Itaboraí (LRJ-19)</h1>
+        <p>Monitoramento de Bancada & SLA (Meta &le; 10:00 min)</p>
+      </div>
+    </div>
+
+    <!-- Abas de Navegação -->
+    <div class="nav-tabs">
+      <button class="nav-tab-btn active" onclick="switchView('operacao', event)">🚨 Tempo Real (Audit T0)</button>
+      <button class="nav-tab-btn" onclick="switchView('gerencial', event)">📊 Gestão & Indicadores</button>
+    </div>
+
+    <div class="actions-top">
+      <div class="sync-status">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="sync-text">Sincronizado</span>
+      </div>
+      <button class="btn-sync" onclick="carregarDados()">🔄 Atualizar</button>
+    </div>
+  </header>
+
+  <!-- ==================== TELA 1: OPERAÇÃO TEMPO REAL (AUDIT T0) ==================== -->
+  <div id="view-operacao">
+    <!-- KPIs Operacionais -->
+    <div class="kpi-row">
+      <div class="kpi-card">
+        <h4>Rotas em Operação</h4>
+        <div class="val" id="op-kpi-total">0</div>
+        <div class="sub">Carregando no T0</div>
+      </div>
+      <div class="kpi-card kpi-nok">
+        <h4>Estouros de SLA (> 10min)</h4>
+        <div class="val" id="op-kpi-nok">0</div>
+        <div class="sub">Rotas fora da conformidade</div>
+      </div>
+      <div class="kpi-card">
+        <h4>Pendentes de Justificativa</h4>
+        <div class="val" id="op-kpi-pendentes" style="color: var(--status-warn);">0</div>
+        <div class="sub">Aguardando preenchimento</div>
+      </div>
+      <div class="kpi-card kpi-ok">
+        <h4>Aderência no Momento</h4>
+        <div class="val" id="op-kpi-aderencia">100%</div>
+        <div class="sub">Meta SLA cumprida</div>
+      </div>
+    </div>
+
+    <!-- Barra de Filtros Operacional -->
+    <div class="filter-bar">
+      <div class="filter-group">
+        <label style="font-size: 0.85rem; color: var(--text-muted);">Buscar:</label>
+        <input type="text" id="op-search" placeholder="Buscar Rota / Cage / Auditor..." oninput="filtrarOperacao()">
+        
+        <label style="font-size: 0.85rem; color: var(--text-muted); margin-left: 10px;">Filtro de SLA:</label>
+        <select id="op-filter-sla" onchange="filtrarOperacao()">
+          <option value="TODOS">Todos os Status</option>
+          <option value="NOK_PENDENTE" selected>Somente Estouro (>10m) Não Justificado</option>
+          <option value="NOK">Todos os > 10m (Com e Sem Justificativa)</option>
+          <option value="OK">Dentro do Prazo (&le; 10m)</option>
+        </select>
+      </div>
+
+      <div style="font-size: 0.8rem; color: var(--text-muted);">
+        Atualização automática em: <strong id="timer-refresh" style="color: #fff;">15s</strong>
+      </div>
+    </div>
+
+    <!-- Tabela de Bancada T0 -->
+    <div class="panel-card">
+      <h3>
+        <span>Rotas na Bancada (Audit T0)</span>
+        <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: normal;">* Clique em Justificar para salvar na planilha</span>
+      </h3>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Target ID (AT/TO)</th>
+              <th>Cage (Vaga)</th>
+              <th>Pacotes</th>
+              <th>Auditor / Bancada</th>
+              <th>Início</th>
+              <th>Fim / Duração</th>
+              <th>Tempo Decorrido</th>
+              <th>Condição</th>
+              <th>Justificativa</th>
+              <th>Ação</th>
+            </tr>
+          </thead>
+          <tbody id="op-table-body">
+            <!-- Linhas dinâmicas -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== TELA 2: GESTÃO GERENCIAL HISTÓRICA ==================== -->
+  <div id="view-gerencial" style="display: none;">
+    <!-- Barra de Filtros Gerencial -->
+    <div class="filter-bar">
+      <div class="filter-group">
+        <label style="font-size: 0.85rem; color: var(--text-muted);">Período / Dia:</label>
+        <select id="ger-filter-data" onchange="atualizarPainelGerencial()">
+          <option value="TODOS">Todos os Dias</option>
+        </select>
+
+        <label style="font-size: 0.85rem; color: var(--text-muted); margin-left: 10px;">Colaborador:</label>
+        <select id="ger-filter-colab" onchange="atualizarPainelGerencial()">
+          <option value="TODOS">Todos os Colaboradores</option>
+        </select>
+
+        <label style="font-size: 0.85rem; color: var(--text-muted); margin-left: 10px;">Status:</label>
+        <select id="ger-filter-status" onchange="atualizarPainelGerencial()">
+          <option value="TODOS">Todos (OK & NOK)</option>
+          <option value="OK">Dentro da Meta (&le; 10m)</option>
+          <option value="NOK">Estouro de SLA (> 10m)</option>
+        </select>
+      </div>
+
+      <button class="btn-sync" onclick="resetarFiltrosGerencial()">Limpar Filtros</button>
+    </div>
+
+    <!-- KPIs Gerenciais -->
+    <div class="kpi-row">
+      <div class="kpi-card">
+        <h4>Tempo Médio Bancada</h4>
+        <div class="val" id="ger-kpi-media">00:00</div>
+        <div class="sub" id="ger-kpi-diff-meta">Meta: 10:00 min</div>
+      </div>
+      <div class="kpi-card kpi-ok">
+        <h4>Aderência ao SLA</h4>
+        <div class="val" id="ger-kpi-aderencia">0.0%</div>
+        <div class="sub" id="ger-kpi-qtd-ok">0 rotas conformes</div>
+      </div>
+      <div class="kpi-card kpi-nok">
+        <h4>Rotas Fora SLA (NOK)</h4>
+        <div class="val" id="ger-kpi-nok">0</div>
+        <div class="sub">Bancadas acima de 10 minutos</div>
+      </div>
+      <div class="kpi-card">
+        <h4>Volume Total Auditado</h4>
+        <div class="val" id="ger-kpi-total">0</div>
+        <div class="sub">Rotas consolidadas</div>
+      </div>
+    </div>
+
+    <!-- Gráficos Gerenciais Linha 1 -->
+    <div class="charts-grid-main">
+      <div class="panel-card">
+        <h3>Evolução Diária do Tempo Médio (vs Meta 10 min)</h3>
+        <canvas id="chartEvolucao" height="110"></canvas>
+      </div>
+      <div class="panel-card">
+        <h3>Distribuição de Conformidade (Clique na fatia)</h3>
+        <canvas id="chartConformidade" height="200"></canvas>
+      </div>
+    </div>
+
+    <!-- Gráficos Gerenciais Linha 2 -->
+    <div class="charts-grid-sub">
+      <div class="panel-card">
+        <h3>Ofensores de Tempo (Motivos Mapeados)</h3>
+        <canvas id="chartMotivos" height="150"></canvas>
+      </div>
+      <div class="panel-card">
+        <h3>Desempenho por Colaborador (Tempo Médio)</h3>
+        <canvas id="chartColaboradores" height="150"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL DE JUSTIFICATIVA ==================== -->
+  <div class="modal-overlay" id="modal-justificativa">
+    <div class="modal-box">
+      <h3>Justificar Rota (> 10min)</h3>
+      <p id="modal-info">Target ID: AT20260921A2ZL • Duração: 15:30</p>
+
+      <label style="font-size: 0.85rem; color: var(--text-muted); display: block; margin-bottom: 6px;">Selecione o Motivo Operacional:</label>
+      <select id="select-motivo">
+        <option value="Pacote Retirado (Fora de Rota)">Pacote Retirado (Fora de Rota)</option>
+        <option value="Verificação de Avaria">Verificação de Avaria</option>
+        <option value="Problemas Sistêmicos">Problemas Sistêmicos</option>
+        <option value="Problemas de Equipamento">Problemas de Equipamento</option>
+        <option value="Atraso do Motorista">Atraso do Motorista</option>
+        <option value="Recontagem">Recontagem</option>
+        <option value="Reconferência">Reconferência</option>
+      </select>
+
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="fecharModal()">Cancelar</button>
+        <button class="btn-save" onclick="salvarJustificativa()">Salvar Justificativa</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rodapé com Créditos -->
+  <footer>
+    <p>Projeto de Gestão Operacional & Monitoramento Shopee Express • <strong>Hub Itaboraí</strong></p>
+    <p>Criado por <strong>Vitor Elias</strong> com auxílio de inteligência operacional de <strong>Gemini</strong></p>
+  </footer>
+
+  <script>
+    // ==========================================
+    // CONFIGURAÇÃO DA API (GOOGLE APPS SCRIPT)
+    // ==========================================
+    const API_URL = "https://script.google.com/macros/s/AKfycbzEyL0CUUvve7Sf7hJFJiSoHKThLYehOLsIGtVLsXijW81fNZZ7o3-8ulWfhW-RxuVW/exec";
+
+    let dbT0 = [];
+    let dbHistorico = [];
+    let dbJustificativas = {};
+    let itemSelecionadoParaJustificar = null;
+
+    // Charts instanciados
+    let chartEvolucaoInstance = null;
+    let chartConformidadeInstance = null;
+    let chartMotivosInstance = null;
+    let chartColaboradoresInstance = null;
+
+    // 1. Inicialização
+    window.addEventListener("DOMContentLoaded", () => {
+      carregarDados();
+      // Auto-refresh a cada 15 segundos
+      setInterval(() => {
+        carregarDados(true);
+      }, 15000);
+    });
+
+    function switchView(tab, evt) {
+      document.querySelectorAll('.nav-tab-btn').forEach(b => b.classList.remove('active'));
+      if (evt && evt.target) evt.target.classList.add('active');
+
+      if (tab === 'operacao') {
+        document.getElementById('view-operacao').style.display = 'block';
+        document.getElementById('view-gerencial').style.display = 'none';
+      } else {
+        document.getElementById('view-operacao').style.display = 'none';
+        document.getElementById('view-gerencial').style.display = 'block';
+        atualizarPainelGerencial();
+      }
+    }
+
+    // 2. Requisição de Dados (Google Apps Script API)
+    async function carregarDados(isSilent = false) {
+      const dot = document.getElementById('status-dot');
+      const syncText = document.getElementById('sync-text');
+
+      if (!isSilent) {
+        dot.style.background = '#f59e0b';
+        syncText.innerText = 'Sincronizando...';
+      }
+
+      try {
+        const resp = await fetch(API_URL);
+        const data = await resp.json();
+        dbT0 = data.t0 || [];
+        dbHistorico = data.historico || [];
+        dbJustificativas = data.justificativas || {};
+
+        dot.style.background = '#10b981';
+        syncText.innerText = 'Ao Vivo (Sincronizado)';
+      } catch (err) {
+        console.warn("Erro ao conectar à API Apps Script, usando base local:", err);
+        carregarFallbackDaPlanilha();
+        dot.style.background = '#f59e0b';
+        syncText.innerText = 'Modo Resiliência Ativo';
+      }
+
+      renderizarOperacao();
+      preencherFiltrosGerencial();
+      atualizarPainelGerencial();
+    }
+
+    // 3. Renderização Operacional (T0)
+    function renderizarOperacao() {
+      const tbody = document.getElementById('op-table-body');
+      tbody.innerHTML = '';
+
+      const termoBusca = document.getElementById('op-search').value.toLowerCase();
+      const filtroSla = document.getElementById('op-filter-sla').value;
+
+      let total = 0;
+      let nok = 0;
+      let pendentes = 0;
+
+      dbT0.forEach(row => {
+        let start = new Date(row.startTime);
+        let end = row.endTime ? new Date(row.endTime) : new Date();
+        let diffMin = (end - start) / (1000 * 60);
+        if (isNaN(diffMin) || diffMin < 0) diffMin = 0;
+
+        let isNok = diffMin > 10;
+        let jaJustificado = !!dbJustificativas[row.targetId];
+
+        total++;
+        if (isNok) nok++;
+        if (isNok && !jaJustificado) pendentes++;
+
+        // Filtros
+        if (filtroSla === 'NOK_PENDENTE' && (!isNok || jaJustificado)) return;
+        if (filtroSla === 'NOK' && !isNok) return;
+        if (filtroSla === 'OK' && isNok) return;
+
+        if (termoBusca) {
+          const matchTarget = (row.targetId || '').toLowerCase().includes(termoBusca);
+          const matchCage = (row.cage || '').toLowerCase().includes(termoBusca);
+          const matchAuditor = (row.auditor || '').toLowerCase().includes(termoBusca);
+          if (!matchTarget && !matchCage && !matchAuditor) return;
+        }
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><strong>${row.targetId}</strong></td>
+          <td><span style="color: #60a5fa; font-weight: bold;">${row.cage}</span></td>
+          <td>${row.qty}</td>
+          <td>${limparNomeAuditor(row.auditor)}</td>
+          <td>${formatarHora(row.startTime)}</td>
+          <td>${row.endTime ? formatarHora(row.endTime) : '<span style="color: #f59e0b;">Em rota...</span>'}</td>
+          <td><strong style="color: ${isNok ? '#f87171' : '#34d399'};">${diffMin.toFixed(1)} min</strong></td>
+          <td><span class="tag ${isNok ? 'tag-nok' : 'tag-ok'}">${isNok ? 'NOK (>10m)' : 'OK'}</span></td>
+          <td>${jaJustificado ? `<span class="tag tag-justificado">${dbJustificativas[row.targetId]}</span>` : (isNok ? '<span style="color:#94a3b8; font-size:0.75rem;">Aguardando</span>' : '-')}</td>
+          <td>
+            ${isNok && !jaJustificado ? 
+              `<button class="btn-justificar" onclick="abrirModalJustificar('${row.targetId}', '${diffMin.toFixed(1)}')">Justificar</button>` : 
+              (jaJustificado ? `<span style="color: #34d399; font-size:0.8rem;">✓ Concluído</span>` : `<span style="color: #64748b;">-</span>`)}
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      // Atualizar KPIs T0
+      document.getElementById('op-kpi-total').innerText = total;
+      document.getElementById('op-kpi-nok').innerText = nok;
+      document.getElementById('op-kpi-pendentes').innerText = pendentes;
+      const aderencia = total > 0 ? (((total - nok) / total) * 100).toFixed(1) : 100;
+      document.getElementById('op-kpi-aderencia').innerText = `${aderencia}%`;
+    }
+
+    function filtrarOperacao() {
+      renderizarOperacao();
+    }
+
+    // 4. Modal e Envio da Justificativa
+    function abrirModalJustificar(targetId, duracao) {
+      itemSelecionadoParaJustificar = { targetId, duracao };
+      document.getElementById('modal-info').innerText = `Target ID: ${targetId} • Duração de Bancada: ${duracao} min`;
+      document.getElementById('modal-justificativa').style.display = 'flex';
+    }
+
+    function fecharModal() {
+      document.getElementById('modal-justificativa').style.display = 'none';
+      itemSelecionadoParaJustificar = null;
+    }
+
+    async function salvarJustificativa() {
+      if (!itemSelecionadoParaJustificar) return;
+      const motivo = document.getElementById('select-motivo').value;
+      const targetId = itemSelecionadoParaJustificar.targetId;
+
+      // Salva localmente de imediato
+      dbJustificativas[targetId] = motivo;
+      fecharModal();
+      renderizarOperacao();
+
+      // Envia via POST para o Google Sheets
+      try {
+        await fetch(API_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ targetId, motivo })
+        });
+      } catch (e) {
+        console.error("Erro no envio:", e);
+      }
+    }
+
+    // 5. Tela Gerencial & Filtros
+    function preencherFiltrosGerencial() {
+      const selectData = document.getElementById('ger-filter-data');
+      const selectColab = document.getElementById('ger-filter-colab');
+
+      const datas = [...new Set(dbHistorico.map(i => i.data).filter(Boolean))].sort();
+      const colabs = [...new Set(dbHistorico.map(i => limparNomeAuditor(i.colaborador)).filter(Boolean))].sort();
+
+      const curData = selectData.value;
+      const curColab = selectColab.value;
+
+      selectData.innerHTML = '<option value="TODOS">Todos os Dias</option>';
+      datas.forEach(d => {
+        selectData.innerHTML += `<option value="${d}">${formatarDataBR(d)}</option>`;
+      });
+
+      selectColab.innerHTML = '<option value="TODOS">Todos os Colaboradores</option>';
+      colabs.forEach(c => {
+        selectColab.innerHTML += `<option value="${c}">${c}</option>`;
+      });
+
+      selectData.value = curData || 'TODOS';
+      selectColab.value = curColab || 'TODOS';
+    }
+
+    function resetarFiltrosGerencial() {
+      document.getElementById('ger-filter-data').value = 'TODOS';
+      document.getElementById('ger-filter-colab').value = 'TODOS';
+      document.getElementById('ger-filter-status').value = 'TODOS';
+      atualizarPainelGerencial();
+    }
+
+    function atualizarPainelGerencial() {
+      const fData = document.getElementById('ger-filter-data').value;
+      const fColab = document.getElementById('ger-filter-colab').value;
+      const fStatus = document.getElementById('ger-filter-status').value;
+
+      let filtrados = dbHistorico.filter(item => {
+        if (fData !== 'TODOS' && item.data !== fData) return false;
+        if (fColab !== 'TODOS' && limparNomeAuditor(item.colaborador) !== fColab) return false;
+        if (fStatus === 'OK' && item.condicao !== 'OK') return false;
+        if (fStatus === 'NOK' && item.condicao !== 'NOK') return false;
+        return true;
+      });
+
+      const total = filtrados.length;
+      const nok = filtrados.filter(i => i.condicao === 'NOK' || i.minutosRota > 10).length;
+      const ok = total - nok;
+      const aderencia = total > 0 ? ((ok / total) * 100).toFixed(1) : 0;
+      const somaMin = filtrados.reduce((acc, cur) => acc + cur.minutosRota, 0);
+      const media = total > 0 ? (somaMin / total).toFixed(2) : 0;
+
+      document.getElementById('ger-kpi-total').innerText = total;
+      document.getElementById('ger-kpi-nok').innerText = nok;
+      document.getElementById('ger-kpi-aderencia').innerText = `${aderencia}%`;
+      document.getElementById('ger-kpi-qtd-ok').innerText = `${ok} rotas dentro do prazo`;
+      document.getElementById('ger-kpi-media').innerText = `${media}m`;
+
+      renderizarGraficosGerenciais(filtrados);
+    }
+
+    function renderizarGraficosGerenciais(dados) {
+      // 1. Evolução Diária
+      const diasMap = {};
+      dados.forEach(d => {
+        if (!d.data) return;
+        if (!diasMap[d.data]) diasMap[d.data] = [];
+        diasMap[d.data].push(d.minutosRota);
+      });
+
+      const labelsDias = Object.keys(diasMap).sort();
+      const mediasDias = labelsDias.map(k => {
+        const arr = diasMap[k];
+        return (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(2);
+      });
+
+      if (chartEvolucaoInstance) chartEvolucaoInstance.destroy();
+      chartEvolucaoInstance = new Chart(document.getElementById('chartEvolucao'), {
+        type: 'line',
+        data: {
+          labels: labelsDias.map(formatarDataBR),
+          datasets: [
+            {
+              label: 'Tempo Médio (min)',
+              data: mediasDias,
+              borderColor: '#ee4d2d',
+              backgroundColor: 'rgba(238, 77, 45, 0.15)',
+              fill: true,
+              tension: 0.3,
+              pointRadius: 4,
+              borderWidth: 2
+            },
+            {
+              label: 'Meta SLA (10 min)',
+              data: Array(labelsDias.length).fill(10),
+              borderColor: '#ef4444',
+              borderDash: [5, 5],
+              borderWidth: 1.5,
+              pointRadius: 0,
+              fill: false
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { labels: { color: '#94a3b8' } } },
+          scales: {
+            y: { beginAtZero: true, grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
+            x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } }
+          }
+        }
+      });
+
+      // 2. Conformidade (Donut com clique interativo)
+      const nok = dados.filter(i => i.condicao === 'NOK' || i.minutosRota > 10).length;
+      const ok = dados.length - nok;
+
+      if (chartConformidadeInstance) chartConformidadeInstance.destroy();
+      chartConformidadeInstance = new Chart(document.getElementById('chartConformidade'), {
+        type: 'doughnut',
+        data: {
+          labels: ['Conforme (OK ≤10m)', 'Estouro (NOK >10m)'],
+          datasets: [{
+            data: [ok, nok],
+            backgroundColor: ['#10b981', '#ef4444'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          onClick: (evt, elements) => {
+            if (elements.length > 0) {
+              const idx = elements[0].index;
+              document.getElementById('ger-filter-status').value = idx === 0 ? 'OK' : 'NOK';
+              atualizarPainelGerencial();
+            }
+          },
+          plugins: {
+            legend: { position: 'bottom', labels: { color: '#94a3b8' } }
+          }
+        }
+      });
+
+      // 3. Motivos / Ofensores
+      const motivosMap = {};
+      dados.forEach(d => {
+        let m = d.motivo || 'Não Mapeado';
+        motivosMap[m] = (motivosMap[m] || 0) + 1;
+      });
+
+      const labelsMotivos = Object.keys(motivosMap);
+      const dataMotivos = Object.values(motivosMap);
+
+      if (chartMotivosInstance) chartMotivosInstance.destroy();
+      chartMotivosInstance = new Chart(document.getElementById('chartMotivos'), {
+        type: 'bar',
+        data: {
+          labels: labelsMotivos,
+          datasets: [{
+            label: 'Ocorrências',
+            data: dataMotivos,
+            backgroundColor: '#3b82f6',
+            borderRadius: 4
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
+            y: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+          }
+        }
+      });
+
+      // 4. Desempenho por Colaborador (Top 7)
+      const colabMap = {};
+      dados.forEach(d => {
+        const c = limparNomeAuditor(d.colaborador);
+        if (!c) return;
+        if (!colabMap[c]) colabMap[c] = [];
+        colabMap[c].push(d.minutosRota);
+      });
+
+      const colabsSorted = Object.keys(colabMap).map(k => {
+        const arr = colabMap[k];
+        return { nome: k, media: (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(2), total: arr.length };
+      }).sort((a, b) => b.media - a.media).slice(0, 7);
+
+      if (chartColaboradoresInstance) chartColaboradoresInstance.destroy();
+      chartColaboradoresInstance = new Chart(document.getElementById('chartColaboradores'), {
+        type: 'bar',
+        data: {
+          labels: colabsSorted.map(c => c.nome.split(' ')[0] + ' ' + (c.nome.split(' ')[1] || '')),
+          datasets: [{
+            label: 'Média Minutos',
+            data: colabsSorted.map(c => c.media),
+            backgroundColor: colabsSorted.map(c => c.media > 10 ? '#ef4444' : '#10b981'),
+            borderRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { beginAtZero: true, grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
+            x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+          }
+        }
+      });
+    }
+
+    // Auxiliares
+    function limparNomeAuditor(nome) {
+      if (!nome) return 'N/A';
+      return nome.replace(/\[.*?\]/g, '').trim();
+    }
+
+    function formatarHora(str) {
+      if (!str) return '-';
+      const d = new Date(str);
+      return isNaN(d.getTime()) ? str : d.toLocaleTimeString('pt-BR');
+    }
+
+    function formatarDataBR(iso) {
+      if (!iso) return '-';
+      const parts = iso.split('-');
+      if (parts.length === 3) return `${parts[2]}/${parts[1]}`;
+      return iso;
+    }
+
+    function carregarFallbackDaPlanilha() {
+      dbT0 = [
+        { operacao: "HUB_19", targetId: "AT20260921A2ZMP", cage: "B-24", qty: 97, startTime: "2026-09-21 11:23:36", endTime: "2026-09-21 11:29:11", auditor: "SILVIA DE OLIVEIRA", status: "Concluido" },
+        { operacao: "HUB_19", targetId: "AT20260921A2ZHE", cage: "A-4", qty: 89, startTime: "2026-09-21 11:13:50", endTime: "2026-09-21 11:18:57", auditor: "CAROLINA CARNEIRO", status: "Concluido" },
+        { operacao: "HUB_19", targetId: "AT20260921A3AA", cage: "B-7", qty: 91, startTime: "2026-09-21 11:03:01", endTime: "2026-09-21 11:08:45", auditor: "RENATA FERREIRA", status: "Concluido" },
+        { operacao: "HUB_19", targetId: "AT20260921A2ZL", cage: "C-7", qty: 105, startTime: "2026-09-21 10:10:20", endTime: "2026-09-21 10:26:18", auditor: "RODRIGO SOUZA LIMA", status: "Concluido" },
+        { operacao: "HUB_19", targetId: "AT20260921A3BF", cage: "C-13", qty: 112, startTime: "2026-09-21 10:47:00", endTime: "2026-09-21 10:54:50", auditor: "CAROLINA CARNEIRO", status: "Concluido" }
+      ];
+
+      dbHistorico = [
+        { data: "2026-09-15", targetId: "AT01", cage: "C-1", minutosRota: 9.36, condicao: "OK", colaborador: "CAROLINA CARNEIRO", motivo: "Não Mapeado" },
+        { data: "2026-09-16", targetId: "AT02", cage: "A-14", minutosRota: 5.18, condicao: "OK", colaborador: "CAROLINA CARNEIRO", motivo: "Não Mapeado" },
+        { data: "2026-09-16", targetId: "AT03", cage: "C-7", minutosRota: 6.85, condicao: "OK", colaborador: "PHAMELLA DE ABREU", motivo: "Não Mapeado" },
+        { data: "2026-09-16", targetId: "AT04", cage: "E-1", minutosRota: 15.36, condicao: "NOK", colaborador: "PHAMELLA DE ABREU", motivo: "Atraso do Motorista" },
+        { data: "2026-09-16", targetId: "AT05", cage: "D-2", minutosRota: 10.10, condicao: "NOK", colaborador: "CAROLINA CARNEIRO", motivo: "Pacote Retirado (Fora de Rota)" },
+        { data: "2026-09-17", targetId: "AT06", cage: "B-5", minutosRota: 8.59, condicao: "OK", colaborador: "SILVIA DE OLIVEIRA", motivo: "Não Mapeado" },
+        { data: "2026-09-18", targetId: "AT07", cage: "D-8", minutosRota: 7.96, condicao: "OK", colaborador: "RODRIGO SOUZA LIMA", motivo: "Não Mapeado" },
+        { data: "2026-09-19", targetId: "AT08", cage: "A-3", minutosRota: 8.14, condicao: "OK", colaborador: "SILVIA DE OLIVEIRA", motivo: "Não Mapeado" }
+      ];
+    }
+  </script>
+</body>
+</html>
