@@ -20,6 +20,10 @@ h1{font-size:1.15rem}.brand p{font-size:.78rem;color:var(--mut)}
 .sync{display:flex;align-items:center;gap:8px;font-size:.8rem;background:var(--bg);border:1px solid var(--bd);padding:6px 12px;border-radius:6px}
 .dot{width:9px;height:9px;border-radius:50%;background:var(--warn)}
 .dot.on{background:var(--ok)}.dot.off{background:var(--nok)}
+th.sortable{cursor:pointer;user-select:none}
+th.sortable:hover{color:#fff}
+th.sortable .arw{opacity:.5;margin-left:4px;font-size:.7rem}
+th.sortable.active .arw{opacity:1;color:var(--or)}
 .btn{background:#172038;color:#fff;border:1px solid var(--bd);padding:8px 14px;border-radius:6px;font-size:.82rem;cursor:pointer;font-weight:600}
 .btn:hover{background:var(--or)}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:16px}
@@ -101,9 +105,10 @@ tbody tr:nth-child(even){background:rgba(255,255,255,.02)}
       <label>Buscar:</label><input id="op-search" placeholder="Target ID, Cage, Auditor...">
       <label>Filtro:</label>
       <select id="op-filter">
+        <option value="ABERTAS" selected>Abertas + pendentes de justificar</option>
+        <option value="ATIVAS">Rotas em andamento</option>
         <option value="NOK_PENDENTE">Pendentes de justificativa</option>
         <option value="NOK">Todas > 10 min</option>
-        <option value="ATIVAS">Rotas em andamento</option>
         <option value="OK">Conformes</option>
         <option value="TODOS">Todas</option>
       </select>
@@ -111,7 +116,7 @@ tbody tr:nth-child(even){background:rgba(255,255,255,.02)}
     <div style="font-size:.82rem;color:var(--mut)">Próxima atualização em <strong id="timer" style="color:#fff">–</strong></div>
   </div>
   <div class="panel">
-    <h3>Rotas na bancada (ao vivo)</h3><div class="sub">Cronômetro segundo a segundo nas rotas sem horário final.</div>
+    <h3>Rotas na bancada (ao vivo)</h3><div class="sub">Mostra toda rota aberta; ao passar de 10 min, fica disponível para justificar; some da lista assim que for justificada.</div>
     <div class="tw"><table>
       <thead><tr><th>Target ID</th><th>Cage</th><th>Pacotes</th><th>Auditor</th><th>Início</th><th>Fim</th><th>Duração</th><th>Condição</th><th>Justificativa</th><th>Ação</th></tr></thead>
       <tbody id="op-body"></tbody>
@@ -124,6 +129,7 @@ tbody tr:nth-child(even){background:rgba(255,255,255,.02)}
   <div class="bar">
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
       <label>Dia:</label><select id="g-data"></select>
+      <span style="font-size:.76rem;color:var(--mut)">* dados de hoje entram em tempo real, antes de serem colados na base histórica</span>
       <label>Colaborador:</label><select id="g-colab"></select>
       <label>Condição:</label>
       <select id="g-status"><option value="TODOS">Todas</option><option value="OK">OK (≤ 10 min)</option><option value="NOK">NOK (> 10 min)</option></select>
@@ -147,7 +153,15 @@ tbody tr:nth-child(even){background:rgba(255,255,255,.02)}
   <div class="panel" style="margin-top:16px">
     <h3>Desempenho por colaborador</h3><div class="sub">Rotas, tempo médio e aderência individual (Conforme ≥ 70%).</div>
     <div class="tw"><table>
-      <thead><tr><th>Colaborador</th><th>Rotas</th><th>Tempo médio</th><th>OK</th><th>NOK</th><th>Aderência</th><th>Status</th></tr></thead>
+      <thead><tr>
+        <th>Colaborador</th>
+        <th class="sortable" data-f="t">Rotas</th>
+        <th class="sortable" data-f="med">Tempo médio</th>
+        <th class="sortable" data-f="ok">OK</th>
+        <th class="sortable" data-f="nok">NOK</th>
+        <th class="sortable" data-f="ader">Aderência</th>
+        <th class="sortable" data-f="nokPct">% Ofensor</th>
+        <th>Status</th></tr></thead>
       <tbody id="colab-body"></tbody>
     </table></div>
   </div>
@@ -158,7 +172,7 @@ tbody tr:nth-child(even){background:rgba(255,255,255,.02)}
   <div class="kpis">
     <div class="kpi"><h4>Capacidade física</h4><div class="v">30 vagas</div><div class="s">20 carros + 10 motos</div></div>
     <div class="kpi ok"><h4>Pico de rotas/hora</h4><div class="v" id="o-pico">–</div><div class="s" id="o-pico-h">–</div></div>
-    <div class="kpi warn"><h4>Vagas ocupadas agora</h4><div class="v" id="o-agora">–</div><div class="s">Rotas ativas no T0</div></div>
+    <div class="kpi warn"><h4>Rotas em conferência agora</h4><div class="v" id="o-agora">–</div><div class="s" id="o-agora-sub">Sem horário final registrado (T0)</div></div>
     <div class="kpi"><h4>Total de rotas (T0)</h4><div class="v" id="o-total">–</div><div class="s">Por horário de início</div></div>
   </div>
   <div class="panel"><h3>Liberação de rotas por hora e % acumulado</h3><div class="sub">Calculado com os horários reais da base Audit T0.</div>
@@ -172,7 +186,7 @@ tbody tr:nth-child(even){background:rgba(255,255,255,.02)}
     <p id="m-info" style="font-size:.85rem;color:var(--mut);margin-top:6px"></p>
     <select id="m-motivo">
       <option>Pacote Retirado (Fora de Rota)</option><option>Verificação de Avaria</option><option>Problemas Sistêmicos</option>
-      <option>Problemas de Equipamento</option><option>Atraso do Motorista</option><option>Recontagem</option><option>Reconferência</option>
+      <option>Problemas de Equipamento</option><option>Atraso do Motorista</option><option>Recontagem</option><option>Reconferência</option><option>Duplicidade</option>
       <option value="__outro">Outro (digitar)</option>
     </select>
     <input id="m-outro" placeholder="Descreva o motivo" maxlength="80" style="display:none">
@@ -218,7 +232,7 @@ function cnt(id, to, dec = 0, suf = "") {
 }
 
 // ===== CONFIG =====
-const API_URL = "https://script.google.com/macros/s/AKfycbyc3CnTifD0wzB0ByYSUVuemQpYzHwpqi04D40mh1KuSdU70cfZ8vuoY1PmEYvBEk1G/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbyZ2_tLKm6c6I_43O21xINmcwXWx7cdM8H0J0EJGJZ6MLW45K0Ndw0wbPFsSCuF1st1/exec";
 const SLA_MIN = 10;          // meta em minutos
 const WARN_MIN = 7;          // amarelo a partir daqui
 const POLL_MS = 5000;
@@ -329,6 +343,7 @@ function renderOperacao() {
   linhas.forEach(({ r, sec, min }) => {
     const ativa = !r.endTime, isNok = min > SLA_MIN, just = dbJust[r.targetId];
     total++; if (isNok) nok++; if (isNok && !just) pend++;
+    if (f === "ABERTAS" && !(ativa || (isNok && !just))) return;
     if (f === "NOK_PENDENTE" && (!isNok || just)) return;
     if (f === "NOK" && !isNok) return;
     if (f === "OK" && isNok) return;
@@ -365,10 +380,23 @@ function tickCronometros() {
 }
 
 // ===== GERENCIAL =====
+function hojeISO() { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+// Enquanto a expedição de hoje não é colada na base histórica, calculamos o dia ao vivo a partir do Audit T0
+function linhasHojeAoVivo() {
+  const hoje = hojeISO(), agora = new Date();
+  const jaNaHistorico = new Set(dbHist.filter(h => h.data === hoje).map(h => h.targetId));
+  return dbT0.filter(r => r.targetId && !jaNaHistorico.has(r.targetId)).map(r => {
+    const sec = duracao(r, agora), min = +((sec ?? 0) / 60).toFixed(2);
+    return { data: hoje, targetId: r.targetId, minutosRota: min, condicao: min > SLA_MIN ? "NOK" : "OK", colaborador: r.auditor, motorista: null, motivo: null };
+  });
+}
+function poolHistorico() { return dbHist.concat(linhasHojeAoVivo()); }
+
 function preencherFiltros() {
   const sd = $("g-data"), sc = $("g-colab"), vd = sd.value || "TODOS", vc = sc.value || "TODOS";
-  const datas = [...new Set(dbHist.map(i => i.data).filter(Boolean))].sort();
-  const colabs = [...new Set(dbHist.map(i => limparNome(i.colaborador)).filter(c => c !== "N/A"))].sort();
+  const pool = poolHistorico();
+  const datas = [...new Set(pool.map(i => i.data).filter(Boolean))].sort();
+  const colabs = [...new Set(pool.map(i => limparNome(i.colaborador)).filter(c => c !== "N/A"))].sort();
   sd.innerHTML = '<option value="TODOS">Todos os dias</option>' + datas.map(d => `<option value="${esc(d)}">${dataBR(d)}</option>`).join("");
   sc.innerHTML = '<option value="TODOS">Todos</option>' + colabs.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
   sd.value = datas.includes(vd) ? vd : "TODOS"; sc.value = colabs.includes(vc) ? vc : "TODOS";
@@ -388,10 +416,12 @@ function upChart(key, id, cfg) {
   }
 }
 const tick = { color: "#94a3b8" }, grid = { color: "#1c2640" };
+let sortColab = { f: "t", dir: -1 };  // -1 desc, 1 asc
 
 function renderGerencial() {
   const fd = $("g-data").value, fc = $("g-colab").value, fs = $("g-status").value;
-  const dados = dbHist.filter(i =>
+  const pool = poolHistorico();
+  const dados = pool.filter(i =>
     (fd === "TODOS" || i.data === fd) && (fc === "TODOS" || limparNome(i.colaborador) === fc) &&
     (fs === "TODOS" || (fs === "NOK") === isNokHist(i)));
   const total = dados.length, nok = dados.filter(isNokHist).length, ok = total - nok;
@@ -406,7 +436,7 @@ function renderGerencial() {
   else { meta.textContent = media <= SLA_MIN ? `▼ ${mmss(dif)} abaixo da meta (${SLA_MIN}:00)` : `▲ ${mmss(dif)} acima da meta`; meta.style.color = media <= SLA_MIN ? "#34d399" : "#f87171"; }
 
   // Evolução diária: FIXA. Ignora filtro de dia e de condição (respeita só colaborador); o dia escolhido fica destacado.
-  const baseEvo = dbHist.filter(i => (fc === "TODOS" || limparNome(i.colaborador) === fc) && (fs === "TODOS" || (fs === "NOK") === isNokHist(i)));
+  const baseEvo = pool.filter(i => (fc === "TODOS" || limparNome(i.colaborador) === fc) && (fs === "TODOS" || (fs === "NOK") === isNokHist(i)));
   const dm = {}; baseEvo.forEach(d => { if (d.data) (dm[d.data] ||= []).push(d.minutosRota || 0); });
   const dias = Object.keys(dm).sort(), meds = dias.map(k => +(dm[k].reduce((a, b) => a + b, 0) / dm[k].length).toFixed(2));
   upChart("evo", "c-evo", { type: "line", data: { labels: dias.map(dataBR), datasets: [
@@ -459,11 +489,18 @@ function renderGerencial() {
   // Tabela de colaboradores
   const cm = {};
   dados.forEach(d => { const c = limparNome(d.colaborador); if (c === "N/A") return; const o = (cm[c] ||= { t: 0, s: 0, ok: 0, nok: 0 }); o.t++; o.s += d.minutosRota || 0; isNokHist(d) ? o.nok++ : o.ok++; });
-  const linhas = Object.keys(cm).map(k => ({ k, ...cm[k], ader: cm[k].ok / cm[k].t * 100, med: cm[k].s / cm[k].t })).sort((a, b) => b.t - a.t);
+  let linhas = Object.keys(cm).map(k => ({ k, ...cm[k], ader: cm[k].ok / cm[k].t * 100, med: cm[k].s / cm[k].t, nokPct: cm[k].nok / cm[k].t * 100 }));
+  linhas.sort((a, b) => (a[sortColab.f] - b[sortColab.f]) * sortColab.dir);
+  document.querySelectorAll("#view-gerencial th.sortable").forEach(th => {
+    th.classList.toggle("active", th.dataset.f === sortColab.f);
+    const old = th.querySelector(".arw"); if (old) old.remove();
+    th.insertAdjacentHTML("beforeend", `<span class="arw">${th.dataset.f === sortColab.f ? (sortColab.dir === -1 ? "▼" : "▲") : "↕"}</span>`);
+  });
   $("colab-body").innerHTML = linhas.length ? linhas.map(c => `<tr><td><strong>${esc(c.k)}</strong></td><td>${c.t}</td><td><b>${minToMMSS(c.med)}</b> (${c.med.toFixed(2)}m)</td>
     <td style="color:#34d399;font-weight:700">${c.ok}</td><td style="color:#f87171;font-weight:700">${c.nok}</td><td><strong>${c.ader.toFixed(1)}%</strong></td>
+    <td><strong style="color:${c.nokPct > 30 ? "#f87171" : "#fbbf24"}">${c.nokPct.toFixed(1)}%</strong></td>
     <td><span class="b ${c.ader >= 70 ? "ok" : "nok"}">${c.ader >= 70 ? "Conforme" : "Atenção"}</span></td></tr>`).join("")
-    : `<tr><td colspan="7" class="empty">Sem dados históricos para exibir.</td></tr>`;
+    : `<tr><td colspan="8" class="empty">Sem dados históricos para exibir.</td></tr>`;
 }
 
 // ===== OCUPAÇÃO (calculada dos horários reais do T0) =====
@@ -478,7 +515,11 @@ function renderOcupacao() {
   $("o-pico").textContent = tot ? pico + " rotas/h" : "–";
   $("o-pico-h").textContent = tot ? `Faixa das ${String(horas[qtd.indexOf(pico)]).padStart(2, "0")}h` : "Sem dados";
   const ativas = dbT0.filter(r => !r.endTime).length;
-  $("o-agora").textContent = `${ativas} / ${CAPACIDADE}`;
+  $("o-agora").textContent = ativas;
+  $("o-agora").style.color = ativas > CAPACIDADE ? "#f87171" : "";
+  $("o-agora-sub").innerHTML = ativas > CAPACIDADE
+    ? `⚠ ${ativas - CAPACIDADE} acima das ${CAPACIDADE} vagas — checar rotas sem horário final registrado`
+    : `${ativas} / ${CAPACIDADE} vagas físicas`;
   upChart("ops", "c-ops", { data: { labels: horas.map(h => String(h).padStart(2, "0") + "h"), datasets: [
     { type: "bar", label: "Quantidade de rotas", data: qtd, backgroundColor: "#2563eb", borderRadius: 4, yAxisID: "yB", datalabels: { anchor: "end", align: "top", color: "#fff", font: { weight: "bold" } } },
     { type: "line", label: "% acumulado", data: perc, borderColor: "#dc2626", backgroundColor: "#dc2626", borderWidth: 2.5, pointRadius: 5, yAxisID: "yL",
@@ -501,6 +542,10 @@ $("op-search").addEventListener("input", renderOperacao);
 $("op-filter").addEventListener("change", renderOperacao);
 ["g-data", "g-colab", "g-status"].forEach(id => $(id).addEventListener("change", renderGerencial));
 $("g-reset").addEventListener("click", () => { $("g-data").value = "TODOS"; $("g-colab").value = "TODOS"; $("g-status").value = "TODOS"; renderGerencial(); });
+document.querySelectorAll("#view-gerencial th.sortable").forEach(th => th.addEventListener("click", () => {
+  sortColab.dir = sortColab.f === th.dataset.f ? -sortColab.dir : -1;
+  sortColab.f = th.dataset.f; renderGerencial();
+}));
 $("btn-refresh").addEventListener("click", carregarDados);
 $("m-cancel").addEventListener("click", fecharModal);
 $("m-save").addEventListener("click", salvarJustificativa);
