@@ -249,7 +249,10 @@ const $ = id => document.getElementById(id);
 // ===== HELPERS =====
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const parseData = s => { if (!s) return null; const d = new Date(String(s).replace(" ", "T")); return isNaN(d) ? null : d; };
-const limparNome = n => n ? String(n).replace(/\[.*?\]/g, "").trim() : "N/A";
+const CONECTIVOS = new Set(["de", "da", "do", "das", "dos", "e"]);
+const tituloNome = s => String(s || "").toLowerCase().split(" ").filter(Boolean)
+  .map(w => CONECTIVOS.has(w) ? w : w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+const limparNome = n => { const s = n ? String(n).replace(/\[.*?\]/g, "").trim() : ""; return s ? tituloNome(s) : "N/A"; };
 const hora = s => { const d = parseData(s); return d ? d.toLocaleTimeString("pt-BR") : "-"; };
 const dataBR = iso => { const p = String(iso || "").split("-"); return p.length === 3 ? `${p[2]}/${p[1]}` : iso; };
 const mmss = sec => `${String(Math.floor(sec / 60)).padStart(2, "0")}:${String(Math.floor(sec % 60)).padStart(2, "0")}`;
