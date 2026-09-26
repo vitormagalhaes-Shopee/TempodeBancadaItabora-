@@ -51,6 +51,8 @@ tr:hover{background:#151d33}
 .b.warn{background:rgba(245,158,11,.2);color:#fbbf24}.b.j{background:rgba(59,130,246,.2);color:#60a5fa}
 .bj{background:var(--or);color:#fff;border:0;padding:5px 12px;border-radius:4px;font-weight:700;cursor:pointer}
 .empty{padding:28px;text-align:center;color:var(--mut)}
+#colab-body tr{cursor:pointer}
+#c-drv{cursor:pointer}
 .alert{display:none;background:rgba(239,68,68,.15);border:1px solid var(--nok);color:#fca5a5;padding:10px 16px;border-radius:8px;margin-bottom:16px;font-size:.85rem}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.8);display:none;align-items:center;justify-content:center;z-index:9}
 .mbox{background:var(--card);border:1px solid var(--bd);border-radius:12px;width:90%;max-width:440px;padding:22px}
@@ -131,6 +133,7 @@ tbody tr:nth-child(even){background:rgba(255,255,255,.02)}
       <label>Dia:</label><select id="g-data"></select>
       <span style="font-size:.76rem;color:var(--mut)">* dados de hoje entram em tempo real, antes de serem colados na base histórica</span>
       <label>Colaborador:</label><select id="g-colab"></select>
+      <label>Motorista:</label><select id="g-motorista"></select>
       <label>Condição:</label>
       <select id="g-status"><option value="TODOS">Todas</option><option value="OK">OK (≤ 10 min)</option><option value="NOK">NOK (> 10 min)</option></select>
     </div>
@@ -146,12 +149,16 @@ tbody tr:nth-child(even){background:rgba(255,255,255,.02)}
     <div class="panel"><h3>Tempo médio diário</h3><div class="sub">Sempre mostra todos os dias (o filtro de dia só destaca o ponto). Responde a Condição (OK/NOK) e Colaborador. 🟢 dentro da meta • 🔴 acima de 10 min.</div><div class="ch"><canvas id="c-evo"></canvas></div></div>
     <div class="panel"><h3>Conformidade</h3><div class="sub">Clique numa fatia para filtrar.</div><div class="ch"><canvas id="c-conf"></canvas></div></div>
   </div>
+  <div class="panel" style="margin-bottom:16px">
+    <h3>Aderência diária ao SLA</h3><div class="sub">Sempre mostra todos os dias (o filtro de dia só destaca o ponto). Responde a Colaborador e Motorista — Condição não se aplica aqui. 🟢 dentro da meta • 🔴 abaixo da meta.</div>
+    <div class="ch"><canvas id="c-ader-dia"></canvas></div>
+  </div>
   <div class="grid2">
-    <div class="panel"><h3>Ofensores (motivos)</h3><div class="sub" id="sub-mot">Quantidade por motivo.</div><div class="ch"><canvas id="c-mot"></canvas></div></div>
-    <div class="panel"><h3>Motoristas com maior tempo médio</h3><div class="sub">Top 10 • 🟢 até 7 min • 🟠 7 a 10 min • 🔴 acima de 10 min.</div><div class="ch" style="height:430px"><canvas id="c-drv"></canvas></div></div>
+    <div class="panel"><h3>Ofensores (motivos)</h3><div class="sub" id="sub-mot">Quantidade por motivo, somente entre as bancadas acima de 10 min.</div><div class="ch"><canvas id="c-mot"></canvas></div></div>
+    <div class="panel"><h3>Motoristas com maior tempo médio</h3><div class="sub">Top 10 • 🟢 até 7 min • 🟠 7 a 10 min • 🔴 acima de 10 min. Clique numa barra para filtrar os gráficos por esse motorista.</div><div class="ch" style="height:430px"><canvas id="c-drv"></canvas></div></div>
   </div>
   <div class="panel" style="margin-top:16px">
-    <h3>Desempenho por colaborador</h3><div class="sub">Rotas, tempo médio e aderência individual (Conforme ≥ 70%).</div>
+    <h3>Desempenho por colaborador</h3><div class="sub">Rotas, tempo médio e aderência individual (Conforme ≥ 70%). Clique numa linha para filtrar os gráficos por esse colaborador.</div>
     <div class="tw"><table>
       <thead><tr>
         <th>Colaborador</th>
@@ -212,6 +219,9 @@ let okConf = 0;
 const gradEvo = ctx => { const a = ctx.chart.chartArea; if (!a) return "rgba(238,77,45,.2)";
   const g = ctx.chart.ctx.createLinearGradient(0, a.top, 0, a.bottom);
   g.addColorStop(0, "rgba(238,77,45,.45)"); g.addColorStop(1, "rgba(238,77,45,0)"); return g; };
+const gradAder = ctx => { const a = ctx.chart.chartArea; if (!a) return "rgba(16,185,129,.2)";
+  const g = ctx.chart.ctx.createLinearGradient(0, a.top, 0, a.bottom);
+  g.addColorStop(0, "rgba(16,185,129,.45)"); g.addColorStop(1, "rgba(16,185,129,0)"); return g; };
 // Texto no centro da rosca (% de aderência)
 Chart.register({ id: "centro", afterDraw(c) {
   if (c.config.type !== "doughnut") return;
@@ -235,6 +245,7 @@ function cnt(id, to, dec = 0, suf = "") {
 const API_URL = "https://script.google.com/macros/s/AKfycbwZVd6za56q3sz9USWxnPv9KlCQK8SV1EQ2bNcJ_DODh1WMBdki-I6Ldpj09H18O-sK/exec";
 const SLA_MIN = 10;          // meta em minutos
 const WARN_MIN = 7;          // amarelo a partir daqui
+const ADER_META = 70;        // % mínimo de aderência para considerar "Conforme"
 const POLL_MS = 5000;
 const CAPACIDADE = 30;
 const PEND_KEY = "spx_just_pendentes";
@@ -396,13 +407,15 @@ function linhasHojeAoVivo() {
 function poolHistorico() { return dbHist.concat(linhasHojeAoVivo()); }
 
 function preencherFiltros() {
-  const sd = $("g-data"), sc = $("g-colab"), vd = sd.value || "TODOS", vc = sc.value || "TODOS";
+  const sd = $("g-data"), sc = $("g-colab"), sm = $("g-motorista"), vd = sd.value || "TODOS", vc = sc.value || "TODOS", vm = sm.value || "TODOS";
   const pool = poolHistorico();
   const datas = [...new Set(pool.map(i => i.data).filter(Boolean))].sort();
   const colabs = [...new Set(pool.map(i => limparNome(i.colaborador)).filter(c => c !== "N/A"))].sort();
+  const motoristas = [...new Set(pool.map(i => limparNome(i.motorista)).filter(c => c !== "N/A"))].sort();
   sd.innerHTML = '<option value="TODOS">Todos os dias</option>' + datas.map(d => `<option value="${esc(d)}">${dataBR(d)}</option>`).join("");
   sc.innerHTML = '<option value="TODOS">Todos</option>' + colabs.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
-  sd.value = datas.includes(vd) ? vd : "TODOS"; sc.value = colabs.includes(vc) ? vc : "TODOS";
+  sm.innerHTML = '<option value="TODOS">Todos</option>' + motoristas.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
+  sd.value = datas.includes(vd) ? vd : "TODOS"; sc.value = colabs.includes(vc) ? vc : "TODOS"; sm.value = motoristas.includes(vm) ? vm : "TODOS";
 }
 function upChart(key, id, cfg) {
   try {
@@ -422,10 +435,11 @@ const tick = { color: "#94a3b8" }, grid = { color: "#1c2640" };
 let sortColab = { f: "t", dir: -1 };  // -1 desc, 1 asc
 
 function renderGerencial() {
-  const fd = $("g-data").value, fc = $("g-colab").value, fs = $("g-status").value;
+  const fd = $("g-data").value, fc = $("g-colab").value, fm = $("g-motorista").value, fs = $("g-status").value;
   const pool = poolHistorico();
   const dados = pool.filter(i =>
     (fd === "TODOS" || i.data === fd) && (fc === "TODOS" || limparNome(i.colaborador) === fc) &&
+    (fm === "TODOS" || limparNome(i.motorista) === fm) &&
     (fs === "TODOS" || (fs === "NOK") === isNokHist(i)));
   const total = dados.length, nok = dados.filter(isNokHist).length, ok = total - nok;
   const media = total ? dados.reduce((a, c) => a + (c.minutosRota || 0), 0) / total : 0;
@@ -438,18 +452,33 @@ function renderGerencial() {
   if (!total) meta.textContent = "Sem dados no filtro";
   else { meta.textContent = media <= SLA_MIN ? `▼ ${mmss(dif)} abaixo da meta (${SLA_MIN}:00)` : `▲ ${mmss(dif)} acima da meta`; meta.style.color = media <= SLA_MIN ? "#34d399" : "#f87171"; }
 
-  // Evolução diária: FIXA. Ignora filtro de dia e de condição (respeita só colaborador); o dia escolhido fica destacado.
-  const baseEvo = pool.filter(i => (fc === "TODOS" || limparNome(i.colaborador) === fc) && (fs === "TODOS" || (fs === "NOK") === isNokHist(i)));
+  // Evolução diária: FIXA. Ignora filtro de dia e de condição (respeita colaborador e motorista); o dia escolhido fica destacado.
+  const baseEvo = pool.filter(i => (fc === "TODOS" || limparNome(i.colaborador) === fc) && (fm === "TODOS" || limparNome(i.motorista) === fm) && (fs === "TODOS" || (fs === "NOK") === isNokHist(i)));
   const dm = {}; baseEvo.forEach(d => { if (d.data) (dm[d.data] ||= []).push(d.minutosRota || 0); });
   const dias = Object.keys(dm).sort(), meds = dias.map(k => +(dm[k].reduce((a, b) => a + b, 0) / dm[k].length).toFixed(2));
   upChart("evo", "c-evo", { type: "line", data: { labels: dias.map(dataBR), datasets: [
-    { label: fs === "NOK" ? "Tempo médio das rotas NOK (min)" : fs === "OK" ? "Tempo médio das rotas OK (min)" : "Tempo médio (min)", data: meds, borderColor: "#ee4d2d", backgroundColor: gradEvo, fill: true, tension: .35, borderWidth: 3,
+    { label: fs === "NOK" ? "Tempo médio das rotas NOK" : fs === "OK" ? "Tempo médio das rotas OK" : "Tempo médio", data: meds, borderColor: "#ee4d2d", backgroundColor: gradEvo, fill: true, tension: .35, borderWidth: 3,
       pointRadius: dias.map(d => d === fd ? 11 : 6), pointHoverRadius: 11, pointBorderColor: "#fff", pointBorderWidth: 2,
       pointBackgroundColor: meds.map(m => m > SLA_MIN ? "#ef4444" : "#10b981"),
-      datalabels: { align: "top", color: "#fff", font: { weight: "bold", size: 11 }, formatter: v => v.toFixed(2) + "m" } },
-    { label: `Meta (${SLA_MIN}m)`, data: dias.map(() => SLA_MIN), borderColor: "#ef4444", borderDash: [6, 6], borderWidth: 1.5, pointRadius: 0, datalabels: { display: false } }] },
+      datalabels: { align: "top", color: "#fff", font: { weight: "bold", size: 11 }, formatter: v => minToMMSS(v) } },
+    { label: `Meta (${minToMMSS(SLA_MIN)})`, data: dias.map(() => SLA_MIN), borderColor: "#ef4444", borderDash: [6, 6], borderWidth: 1.5, pointRadius: 0, datalabels: { display: false } }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: tick },
+      tooltip: { callbacks: { label: c => `${c.dataset.label}: ${minToMMSS(c.parsed.y)}` } } },
+      scales: { y: { suggestedMin: 5, suggestedMax: 12, grid, ticks: { ...tick, callback: v => minToMMSS(v) } }, x: { grid, ticks: tick } } } });
+
+  // Aderência diária: FIXA (todos os dias). Ignora Condição (não faz sentido aqui); respeita colaborador e motorista.
+  const baseAder = pool.filter(i => (fc === "TODOS" || limparNome(i.colaborador) === fc) && (fm === "TODOS" || limparNome(i.motorista) === fm));
+  const dmA = {}; baseAder.forEach(d => { if (d.data) (dmA[d.data] ||= []).push(d); });
+  const diasA = Object.keys(dmA).sort();
+  const aderPct = diasA.map(k => { const arr = dmA[k]; const okC = arr.filter(x => !isNokHist(x)).length; return +(okC / arr.length * 100).toFixed(1); });
+  upChart("aderDia", "c-ader-dia", { type: "line", data: { labels: diasA.map(dataBR), datasets: [
+    { label: "Aderência ao SLA", data: aderPct, borderColor: "#10b981", backgroundColor: gradAder, fill: true, tension: .35, borderWidth: 3,
+      pointRadius: diasA.map(d => d === fd ? 11 : 6), pointHoverRadius: 11, pointBorderColor: "#fff", pointBorderWidth: 2,
+      pointBackgroundColor: aderPct.map(v => v >= ADER_META ? "#10b981" : "#ef4444"),
+      datalabels: { align: "top", color: "#fff", font: { weight: "bold", size: 11 }, formatter: v => v.toFixed(1) + "%" } },
+    { label: `Meta (${ADER_META}%)`, data: diasA.map(() => ADER_META), borderColor: "#ef4444", borderDash: [6, 6], borderWidth: 1.5, pointRadius: 0, datalabels: { display: false } }] },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: tick } },
-      scales: { y: { suggestedMin: 5, suggestedMax: 12, grid, ticks: { ...tick, callback: v => v + "m" } }, x: { grid, ticks: tick } } } });
+      scales: { y: { min: 0, max: 100, grid, ticks: { ...tick, callback: v => v + "%" } }, x: { grid, ticks: tick } } } });
 
   // Conformidade
   totalConf = total; okConf = ok;
@@ -459,9 +488,12 @@ function renderGerencial() {
       plugins: { legend: { position: "bottom", labels: tick },
         datalabels: { color: "#fff", font: { weight: "bold", size: 13 }, formatter: v => totalConf && v ? (v / totalConf * 100).toFixed(1) + "%" : "" } } } });
 
-  // Motivos
+  // Motivos: sempre só as bancadas > 10 min, independente do filtro de Condição (respeita dia, colaborador e motorista)
+  const dadosMotivo = pool.filter(i =>
+    (fd === "TODOS" || i.data === fd) && (fc === "TODOS" || limparNome(i.colaborador) === fc) &&
+    (fm === "TODOS" || limparNome(i.motorista) === fm) && isNokHist(i));
   const mm = {}, nomes = {}; let semMotivo = 0;
-  dados.forEach(d => {
+  dadosMotivo.forEach(d => {
     let m = String(d.motivo || "").trim();
     while (m.endsWith(")") && (m.match(/\)/g) || []).length > (m.match(/\(/g) || []).length) m = m.slice(0, -1).trim();
     const k = m.toLowerCase();
@@ -469,24 +501,31 @@ function renderGerencial() {
     nomes[k] ||= m; mm[nomes[k]] = (mm[nomes[k]] || 0) + 1;
   });
   const mk = Object.keys(mm).sort((a, b) => mm[b] - mm[a]);
-  $("sub-mot").textContent = `Quantidade por motivo • ${semMotivo} rotas sem motivo mapeado ficam fora do gráfico.`;
+  $("sub-mot").textContent = `Quantidade por motivo, somente entre as bancadas acima de 10 min • ${semMotivo} sem motivo mapeado ficam fora do gráfico.`;
   upChart("mot", "c-mot", { type: "bar", data: { labels: mk, datasets: [{ label: "Qtd", data: mk.map(k => mm[k]), backgroundColor: mk.map((_, i) => PAL[i % PAL.length]), borderRadius: 6,
     datalabels: { anchor: "end", align: "end", color: "#fff", font: { weight: "bold", size: 11 } } }] },
     options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, layout: { padding: { right: 24 } }, plugins: { legend: { display: false } },
       scales: { x: { grid, ticks: tick }, y: { grid: { display: false }, ticks: tick } } } });
 
-  // Motoristas: nomes completos em 2 linhas, rótulo fora da barra, cores com contraste
-  const dr = {}; dados.forEach(d => { const m = d.motorista; if (m && String(m).toLowerCase() !== "não mapeado") (dr[m] ||= []).push(d.minutosRota || 0); });
+  // Motoristas: sempre mostra o Top 10 geral (ignora o próprio filtro de motorista, para permitir escolher outro);
+  // respeita dia, colaborador e condição. Nomes normalizados com limparNome para não duplicar o mesmo motorista
+  // escrito de formas diferentes na planilha (essa era a causa da contagem "quebrada" ao filtrar).
+  const dadosDrv = pool.filter(i =>
+    (fd === "TODOS" || i.data === fd) && (fc === "TODOS" || limparNome(i.colaborador) === fc) &&
+    (fs === "TODOS" || (fs === "NOK") === isNokHist(i)));
+  const dr = {};
+  dadosDrv.forEach(d => { const nome = limparNome(d.motorista); if (nome !== "N/A") (dr[nome] ||= []).push(d.minutosRota || 0); });
   const top = Object.keys(dr).map(k => ({ n: k, m: dr[k].reduce((a, b) => a + b, 0) / dr[k].length, q: dr[k].length })).sort((a, b) => b.m - a.m).slice(0, 10);
   const quebra = n => { const p = String(n).split(" "); if (n.length <= 20) return n;
     let a = "", i = 0; while (i < p.length && (a + " " + p[i]).trim().length <= Math.ceil(n.length / 2) + 2) a = (a + " " + p[i++]).trim();
     const b = p.slice(i).join(" "); return b ? [a, b.length > 24 ? b.slice(0, 23) + "…" : b] : a; };
   const corDrv = m => m > SLA_MIN ? "#ef4444" : m > WARN_MIN ? "#f97316" : "#22c55e";
-  upChart("drv", "c-drv", { type: "bar", data: { labels: top.map(t => quebra(t.n)), datasets: [{ label: "Minutos", data: top.map(t => +t.m.toFixed(2)), backgroundColor: top.map(t => corDrv(t.m)), borderRadius: 6, barThickness: 22,
-    datalabels: { anchor: "end", align: "end", color: "#f1f5f9", font: { weight: "bold", size: 11 }, formatter: v => `${minToMMSS(v)}  (${v}m)` } }] },
-    options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, layout: { padding: { right: 100 } },
-      plugins: { legend: { display: false }, tooltip: { callbacks: { title: c => top[c[0].dataIndex].n, label: c => ` ${minToMMSS(c.parsed.x)} min • ${top[c.dataIndex].q} rotas` } } },
-      scales: { x: { suggestedMax: Math.max(12, ...top.map(t => t.m)) + 1, grid, ticks: { ...tick, callback: v => v + "m" } },
+  upChart("drv", "c-drv", { type: "bar", data: { labels: top.map(t => quebra(t.n)), datasets: [{ label: "Tempo médio", data: top.map(t => +t.m.toFixed(2)), backgroundColor: top.map(t => t.n === fm ? "#3b82f6" : corDrv(t.m)), borderRadius: 6, barThickness: 22,
+    datalabels: { anchor: "end", align: "end", color: "#f1f5f9", font: { weight: "bold", size: 11 }, formatter: v => minToMMSS(v) } }] },
+    options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, layout: { padding: { right: 60 } },
+      onClick: (e, els) => { if (els.length) { const nome = top[els[0].index].n; $("g-motorista").value = ($("g-motorista").value === nome) ? "TODOS" : nome; renderGerencial(); } },
+      plugins: { legend: { display: false }, tooltip: { callbacks: { title: c => top[c[0].dataIndex].n, label: c => ` ${minToMMSS(c.parsed.x)} • ${top[c.dataIndex].q} rota${top[c.dataIndex].q === 1 ? "" : "s"}` } } },
+      scales: { x: { suggestedMax: Math.max(12, ...top.map(t => t.m)) + 1, grid, ticks: { ...tick, callback: v => minToMMSS(v) } },
                 y: { grid: { display: false }, ticks: { color: "#cbd5e1", font: { size: 11, weight: "600" }, autoSkip: false } } } } });
 
   // Tabela de colaboradores
@@ -499,10 +538,10 @@ function renderGerencial() {
     const old = th.querySelector(".arw"); if (old) old.remove();
     th.insertAdjacentHTML("beforeend", `<span class="arw">${th.dataset.f === sortColab.f ? (sortColab.dir === -1 ? "▼" : "▲") : "↕"}</span>`);
   });
-  $("colab-body").innerHTML = linhas.length ? linhas.map(c => `<tr><td><strong>${esc(c.k)}</strong></td><td>${c.t}</td><td><b>${minToMMSS(c.med)}</b> (${c.med.toFixed(2)}m)</td>
+  $("colab-body").innerHTML = linhas.length ? linhas.map(c => `<tr data-colab="${esc(c.k)}" title="Clique para filtrar por ${esc(c.k)}"><td><strong>${esc(c.k)}</strong></td><td>${c.t}</td><td><b>${minToMMSS(c.med)}</b></td>
     <td style="color:#34d399;font-weight:700">${c.ok}</td><td style="color:#f87171;font-weight:700">${c.nok}</td><td><strong>${c.ader.toFixed(1)}%</strong></td>
     <td><strong style="color:${c.nokPct > 30 ? "#f87171" : "#fbbf24"}">${c.nokPct.toFixed(1)}%</strong></td>
-    <td><span class="b ${c.ader >= 70 ? "ok" : "nok"}">${c.ader >= 70 ? "Conforme" : "Atenção"}</span></td></tr>`).join("")
+    <td><span class="b ${c.ader >= ADER_META ? "ok" : "nok"}">${c.ader >= ADER_META ? "Conforme" : "Atenção"}</span></td></tr>`).join("")
     : `<tr><td colspan="8" class="empty">Sem dados históricos para exibir.</td></tr>`;
 }
 
@@ -543,8 +582,14 @@ document.querySelectorAll(".tab").forEach(b => b.addEventListener("click", () =>
 $("op-body").addEventListener("click", e => { const b = e.target.closest("button[data-id]"); if (b) abrirModal(b.dataset.id, b.dataset.dur); });
 $("op-search").addEventListener("input", renderOperacao);
 $("op-filter").addEventListener("change", renderOperacao);
-["g-data", "g-colab", "g-status"].forEach(id => $(id).addEventListener("change", renderGerencial));
-$("g-reset").addEventListener("click", () => { $("g-data").value = "TODOS"; $("g-colab").value = "TODOS"; $("g-status").value = "TODOS"; renderGerencial(); });
+["g-data", "g-colab", "g-motorista", "g-status"].forEach(id => $(id).addEventListener("change", renderGerencial));
+$("g-reset").addEventListener("click", () => { $("g-data").value = "TODOS"; $("g-colab").value = "TODOS"; $("g-motorista").value = "TODOS"; $("g-status").value = "TODOS"; renderGerencial(); });
+$("colab-body").addEventListener("click", e => {
+  const tr = e.target.closest("tr[data-colab]"); if (!tr) return;
+  const nome = tr.dataset.colab;
+  $("g-colab").value = ($("g-colab").value === nome) ? "TODOS" : nome;
+  renderGerencial();
+});
 document.querySelectorAll("#view-gerencial th.sortable").forEach(th => th.addEventListener("click", () => {
   sortColab.dir = sortColab.f === th.dataset.f ? -sortColab.dir : -1;
   sortColab.f = th.dataset.f; renderGerencial();
