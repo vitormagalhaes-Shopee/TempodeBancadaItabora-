@@ -34,7 +34,7 @@ th.sortable.active .arw{opacity:1;color:var(--or)}
 .bar{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
 .bar label{font-size:.82rem;color:var(--mut)}
 select,input{background:var(--bg);border:1px solid var(--bd);color:#fff;padding:8px 10px;border-radius:6px;font-size:.85rem}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;align-items:start}
 .grid2.main{grid-template-columns:2fr 1.1fr}
 @media(max-width:900px){.grid2,.grid2.main{grid-template-columns:1fr}}
 .panel{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:18px;margin-bottom:16px}
@@ -506,10 +506,17 @@ function renderGerencial() {
   });
   const mk = Object.keys(mm).sort((a, b) => mm[b] - mm[a]);
   $("sub-mot").textContent = `Quantidade por motivo, somente entre as bancadas acima de 10 min • ${semMotivo} sem motivo mapeado ficam fora do gráfico.`;
-  upChart("mot", "c-mot", { type: "bar", data: { labels: mk, datasets: [{ label: "Qtd", data: mk.map(k => mm[k]), backgroundColor: mk.map((_, i) => PAL[i % PAL.length]), borderRadius: 6,
+  const maxMot = mk.length ? mm[mk[0]] : 0;
+  const corMotivo = v => { const t = maxMot ? v / maxMot : 0;
+    const c1 = [252, 211, 150], c2 = [238, 77, 45];   // do âmbar claro (menor ofensor) ao laranja da marca (maior)
+    const rgb = c1.map((c, i) => Math.round(c + (c2[i] - c) * t));
+    return `rgb(${rgb.join(",")})`; };
+  const altoMot = Math.min(320, Math.max(160, mk.length * 36 + 40));
+  $("c-mot").parentElement.style.height = altoMot + "px";
+  upChart("mot", "c-mot", { type: "bar", data: { labels: mk, datasets: [{ label: "Qtd", data: mk.map(k => mm[k]), backgroundColor: mk.map(k => corMotivo(mm[k])), borderRadius: 6, maxBarThickness: 30,
     datalabels: { anchor: "end", align: "end", color: "#fff", font: { weight: "bold", size: 11 } } }] },
-    options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, layout: { padding: { right: 24 } }, plugins: { legend: { display: false } },
-      scales: { x: { grid, ticks: tick }, y: { grid: { display: false }, ticks: tick } } } });
+    options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, layout: { padding: { right: 20 } }, plugins: { legend: { display: false } },
+      scales: { x: { suggestedMax: Math.max(5, Math.ceil((maxMot * 1.15) / 5) * 5), grid, ticks: tick }, y: { grid: { display: false }, ticks: tick } } } });
 
   // Motoristas: sempre mostra o Top 10 geral (ignora o próprio filtro de motorista, para permitir escolher outro);
   // respeita dia, colaborador e condição. Nomes normalizados com limparNome para não duplicar o mesmo motorista
