@@ -130,7 +130,8 @@ tbody tr:nth-child(even){background:rgba(255,255,255,.02)}
 <div id="view-gerencial" style="display:none">
   <div class="bar">
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-      <label>Dia:</label><select id="g-data"></select>
+      <label>De:</label><select id="g-data-de"></select>
+      <label>Até:</label><select id="g-data-ate"></select>
       <span style="font-size:.76rem;color:var(--mut)">* dados de hoje entram em tempo real, antes de serem colados na base histórica</span>
       <label>Colaborador:</label><select id="g-colab"></select>
       <label>Motorista:</label><select id="g-motorista"></select>
@@ -146,11 +147,11 @@ tbody tr:nth-child(even){background:rgba(255,255,255,.02)}
     <div class="kpi"><h4>Volume auditado</h4><div class="v" id="g-total">–</div><div class="s">Rotas no filtro atual</div></div>
   </div>
   <div class="grid2 main">
-    <div class="panel"><h3>Tempo médio diário</h3><div class="sub">Sempre mostra todos os dias (o filtro de dia só destaca o ponto). Responde a Condição (OK/NOK) e Colaborador. 🟢 dentro da meta • 🔴 acima de 10 min.</div><div class="ch"><canvas id="c-evo"></canvas></div></div>
-    <div class="panel"><h3>Conformidade</h3><div class="sub">Clique numa fatia para filtrar.</div><div class="ch"><canvas id="c-conf"></canvas></div></div>
+    <div class="panel"><h3>Tempo médio diário</h3><div class="sub">Sempre mostra todos os dias (o filtro de período só destaca o intervalo). Responde a Condição (OK/NOK), Colaborador e Motorista. 🟢 dentro da meta • 🔴 acima de 10 min.</div><div class="ch"><canvas id="c-evo"></canvas></div></div>
+    <div class="panel"><h3>Conformidade</h3><div class="sub">Clique numa fatia para filtrar; clique de novo para tirar o filtro.</div><div class="ch"><canvas id="c-conf"></canvas></div></div>
   </div>
   <div class="panel" style="margin-bottom:16px">
-    <h3>Aderência diária ao SLA</h3><div class="sub">Sempre mostra todos os dias (o filtro de dia só destaca o ponto). Responde a Colaborador e Motorista — Condição não se aplica aqui. 🟢 dentro da meta • 🔴 abaixo da meta.</div>
+    <h3>Aderência diária ao SLA</h3><div class="sub">Sempre mostra todos os dias (o filtro de período só destaca o intervalo). Responde a Colaborador e Motorista — Condição não se aplica aqui. 🟢 dentro da meta • 🔴 abaixo da meta.</div>
     <div class="ch"><canvas id="c-ader-dia"></canvas></div>
   </div>
   <div class="grid2">
@@ -407,15 +408,17 @@ function linhasHojeAoVivo() {
 function poolHistorico() { return dbHist.concat(linhasHojeAoVivo()); }
 
 function preencherFiltros() {
-  const sd = $("g-data"), sc = $("g-colab"), sm = $("g-motorista"), vd = sd.value || "TODOS", vc = sc.value || "TODOS", vm = sm.value || "TODOS";
+  const sdDe = $("g-data-de"), sdAte = $("g-data-ate"), sc = $("g-colab"), sm = $("g-motorista"), vdDe = sdDe.value || "TODOS", vdAte = sdAte.value || "TODOS", vc = sc.value || "TODOS", vm = sm.value || "TODOS";
   const pool = poolHistorico();
   const datas = [...new Set(pool.map(i => i.data).filter(Boolean))].sort();
   const colabs = [...new Set(pool.map(i => limparNome(i.colaborador)).filter(c => c !== "N/A"))].sort();
   const motoristas = [...new Set(pool.map(i => limparNome(i.motorista)).filter(c => c !== "N/A"))].sort();
-  sd.innerHTML = '<option value="TODOS">Todos os dias</option>' + datas.map(d => `<option value="${esc(d)}">${dataBR(d)}</option>`).join("");
+  const opcoesData = '<option value="TODOS">Sem limite</option>' + datas.map(d => `<option value="${esc(d)}">${dataBR(d)}</option>`).join("");
+  sdDe.innerHTML = opcoesData; sdAte.innerHTML = opcoesData;
   sc.innerHTML = '<option value="TODOS">Todos</option>' + colabs.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
   sm.innerHTML = '<option value="TODOS">Todos</option>' + motoristas.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
-  sd.value = datas.includes(vd) ? vd : "TODOS"; sc.value = colabs.includes(vc) ? vc : "TODOS"; sm.value = motoristas.includes(vm) ? vm : "TODOS";
+  sdDe.value = datas.includes(vdDe) ? vdDe : "TODOS"; sdAte.value = datas.includes(vdAte) ? vdAte : "TODOS";
+  sc.value = colabs.includes(vc) ? vc : "TODOS"; sm.value = motoristas.includes(vm) ? vm : "TODOS";
 }
 function upChart(key, id, cfg) {
   try {
@@ -435,10 +438,11 @@ const tick = { color: "#94a3b8" }, grid = { color: "#1c2640" };
 let sortColab = { f: "t", dir: -1 };  // -1 desc, 1 asc
 
 function renderGerencial() {
-  const fd = $("g-data").value, fc = $("g-colab").value, fm = $("g-motorista").value, fs = $("g-status").value;
+  const fdDe = $("g-data-de").value, fdAte = $("g-data-ate").value, fc = $("g-colab").value, fm = $("g-motorista").value, fs = $("g-status").value;
+  const noPeriodo = data => (fdDe === "TODOS" || data >= fdDe) && (fdAte === "TODOS" || data <= fdAte);
   const pool = poolHistorico();
   const dados = pool.filter(i =>
-    (fd === "TODOS" || i.data === fd) && (fc === "TODOS" || limparNome(i.colaborador) === fc) &&
+    noPeriodo(i.data) && (fc === "TODOS" || limparNome(i.colaborador) === fc) &&
     (fm === "TODOS" || limparNome(i.motorista) === fm) &&
     (fs === "TODOS" || (fs === "NOK") === isNokHist(i)));
   const total = dados.length, nok = dados.filter(isNokHist).length, ok = total - nok;
@@ -452,13 +456,13 @@ function renderGerencial() {
   if (!total) meta.textContent = "Sem dados no filtro";
   else { meta.textContent = media <= SLA_MIN ? `▼ ${mmss(dif)} abaixo da meta (${SLA_MIN}:00)` : `▲ ${mmss(dif)} acima da meta`; meta.style.color = media <= SLA_MIN ? "#34d399" : "#f87171"; }
 
-  // Evolução diária: FIXA. Ignora filtro de dia e de condição (respeita colaborador e motorista); o dia escolhido fica destacado.
+  // Evolução diária: FIXA. Ignora filtro de período e de condição (respeita colaborador e motorista); o intervalo escolhido fica destacado.
   const baseEvo = pool.filter(i => (fc === "TODOS" || limparNome(i.colaborador) === fc) && (fm === "TODOS" || limparNome(i.motorista) === fm) && (fs === "TODOS" || (fs === "NOK") === isNokHist(i)));
   const dm = {}; baseEvo.forEach(d => { if (d.data) (dm[d.data] ||= []).push(d.minutosRota || 0); });
   const dias = Object.keys(dm).sort(), meds = dias.map(k => +(dm[k].reduce((a, b) => a + b, 0) / dm[k].length).toFixed(2));
   upChart("evo", "c-evo", { type: "line", data: { labels: dias.map(dataBR), datasets: [
     { label: fs === "NOK" ? "Tempo médio das rotas NOK" : fs === "OK" ? "Tempo médio das rotas OK" : "Tempo médio", data: meds, borderColor: "#ee4d2d", backgroundColor: gradEvo, fill: true, tension: .35, borderWidth: 3,
-      pointRadius: dias.map(d => d === fd ? 11 : 6), pointHoverRadius: 11, pointBorderColor: "#fff", pointBorderWidth: 2,
+      pointRadius: dias.map(d => noPeriodo(d) ? 11 : 6), pointHoverRadius: 11, pointBorderColor: "#fff", pointBorderWidth: 2,
       pointBackgroundColor: meds.map(m => m > SLA_MIN ? "#ef4444" : "#10b981"),
       datalabels: { align: "top", color: "#fff", font: { weight: "bold", size: 11 }, formatter: v => minToMMSS(v) } },
     { label: `Meta (${minToMMSS(SLA_MIN)})`, data: dias.map(() => SLA_MIN), borderColor: "#ef4444", borderDash: [6, 6], borderWidth: 1.5, pointRadius: 0, datalabels: { display: false } }] },
@@ -473,7 +477,7 @@ function renderGerencial() {
   const aderPct = diasA.map(k => { const arr = dmA[k]; const okC = arr.filter(x => !isNokHist(x)).length; return +(okC / arr.length * 100).toFixed(1); });
   upChart("aderDia", "c-ader-dia", { type: "line", data: { labels: diasA.map(dataBR), datasets: [
     { label: "Aderência ao SLA", data: aderPct, borderColor: "#10b981", backgroundColor: gradAder, fill: true, tension: .35, borderWidth: 3,
-      pointRadius: diasA.map(d => d === fd ? 11 : 6), pointHoverRadius: 11, pointBorderColor: "#fff", pointBorderWidth: 2,
+      pointRadius: diasA.map(d => noPeriodo(d) ? 11 : 6), pointHoverRadius: 11, pointBorderColor: "#fff", pointBorderWidth: 2,
       pointBackgroundColor: aderPct.map(v => v >= ADER_META ? "#10b981" : "#ef4444"),
       datalabels: { align: "top", color: "#fff", font: { weight: "bold", size: 11 }, formatter: v => v.toFixed(1) + "%" } },
     { label: `Meta (${ADER_META}%)`, data: diasA.map(() => ADER_META), borderColor: "#ef4444", borderDash: [6, 6], borderWidth: 1.5, pointRadius: 0, datalabels: { display: false } }] },
@@ -484,13 +488,13 @@ function renderGerencial() {
   totalConf = total; okConf = ok;
   upChart("conf", "c-conf", { type: "doughnut", data: { labels: ["OK (≤10m)", "NOK (>10m)"], datasets: [{ data: [ok, nok], backgroundColor: ["#10b981", "#ee4d2d"], borderWidth: 0, hoverOffset: 8 }] },
     options: { responsive: true, maintainAspectRatio: false, cutout: "66%",
-      onClick: (e, els) => { if (els.length) { $("g-status").value = els[0].index === 0 ? "OK" : "NOK"; renderGerencial(); } },
+      onClick: (e, els) => { if (els.length) { const val = els[0].index === 0 ? "OK" : "NOK"; $("g-status").value = ($("g-status").value === val) ? "TODOS" : val; renderGerencial(); } },
       plugins: { legend: { position: "bottom", labels: tick },
         datalabels: { color: "#fff", font: { weight: "bold", size: 13 }, formatter: v => totalConf && v ? (v / totalConf * 100).toFixed(1) + "%" : "" } } } });
 
   // Motivos: sempre só as bancadas > 10 min, independente do filtro de Condição (respeita dia, colaborador e motorista)
   const dadosMotivo = pool.filter(i =>
-    (fd === "TODOS" || i.data === fd) && (fc === "TODOS" || limparNome(i.colaborador) === fc) &&
+    noPeriodo(i.data) && (fc === "TODOS" || limparNome(i.colaborador) === fc) &&
     (fm === "TODOS" || limparNome(i.motorista) === fm) && isNokHist(i));
   const mm = {}, nomes = {}; let semMotivo = 0;
   dadosMotivo.forEach(d => {
@@ -511,7 +515,7 @@ function renderGerencial() {
   // respeita dia, colaborador e condição. Nomes normalizados com limparNome para não duplicar o mesmo motorista
   // escrito de formas diferentes na planilha (essa era a causa da contagem "quebrada" ao filtrar).
   const dadosDrv = pool.filter(i =>
-    (fd === "TODOS" || i.data === fd) && (fc === "TODOS" || limparNome(i.colaborador) === fc) &&
+    (noPeriodo(i.data)) && (fc === "TODOS" || limparNome(i.colaborador) === fc) &&
     (fs === "TODOS" || (fs === "NOK") === isNokHist(i)));
   const dr = {};
   dadosDrv.forEach(d => { const nome = limparNome(d.motorista); if (nome !== "N/A") (dr[nome] ||= []).push(d.minutosRota || 0); });
@@ -582,8 +586,8 @@ document.querySelectorAll(".tab").forEach(b => b.addEventListener("click", () =>
 $("op-body").addEventListener("click", e => { const b = e.target.closest("button[data-id]"); if (b) abrirModal(b.dataset.id, b.dataset.dur); });
 $("op-search").addEventListener("input", renderOperacao);
 $("op-filter").addEventListener("change", renderOperacao);
-["g-data", "g-colab", "g-motorista", "g-status"].forEach(id => $(id).addEventListener("change", renderGerencial));
-$("g-reset").addEventListener("click", () => { $("g-data").value = "TODOS"; $("g-colab").value = "TODOS"; $("g-motorista").value = "TODOS"; $("g-status").value = "TODOS"; renderGerencial(); });
+["g-data-de", "g-data-ate", "g-colab", "g-motorista", "g-status"].forEach(id => $(id).addEventListener("change", renderGerencial));
+$("g-reset").addEventListener("click", () => { $("g-data-de").value = "TODOS"; $("g-data-ate").value = "TODOS"; $("g-colab").value = "TODOS"; $("g-motorista").value = "TODOS"; $("g-status").value = "TODOS"; renderGerencial(); });
 $("colab-body").addEventListener("click", e => {
   const tr = e.target.closest("tr[data-colab]"); if (!tr) return;
   const nome = tr.dataset.colab;
